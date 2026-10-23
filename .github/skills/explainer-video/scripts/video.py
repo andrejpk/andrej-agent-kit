@@ -17,7 +17,9 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from azure_narration import Narration, probe_seconds, speech_credentials, work_directory
+from azure_narration import (
+    Narration, check_cli_dependencies, probe_seconds, speech_auth, speech_credentials, work_directory,
+)
 
 QUALITIES = {"low": ("-ql", "480p15"), "medium": ("-qm", "720p30"), "high": ("-qh", "1080p60")}
 
@@ -65,8 +67,14 @@ def check(project: Path) -> int:
             print(f"MISSING: {filename}")
             missing.append(filename)
     try:
-        speech_credentials(project)
-        print("OK: Azure Speech key and region configured (values not displayed; connection not tested)")
+        mode, endpoint = speech_auth(project)
+        if mode == "cli":
+            check_cli_dependencies()
+            print(f"OK: Azure CLI authentication configured for {endpoint}")
+            print("  Login, Speech User role, and endpoint connectivity have NOT been tested.")
+        else:
+            speech_credentials(project)
+            print("OK: Azure Speech key and region configured (values not displayed; connection not tested)")
     except ValueError as exc:
         print(f"OPTIONAL for silent preview: {exc}")
     print("Optional: LaTeX for MathTex; Inter font for matching the default style.")

@@ -167,29 +167,45 @@ frames around transitions when needed.
 
 ## 6. Generate narration and render
 
-Use an existing Azure Speech resource. Configure `AZURE_SPEECH_KEY` and
-`AZURE_SPEECH_REGION` in the environment or the topic's ignored `.env`.
-Environment values take precedence. Never print credentials, inspect them
-in a transcript, commit them, or place them on a command line.
+Prefer keyless Azure CLI authentication for an existing Speech resource:
 
-If the user prefers Azure CLI, have them run `az login` themselves and identify
-the existing resource's subscription, resource group, and name. CLI login is
-not direct Speech authentication in this implementation. Capture
-`az cognitiveservices account show --subscription <id> --resource-group <rg> --name <name> --query location --output tsv`
-into `AZURE_SPEECH_REGION`, and capture
-`az cognitiveservices account keys list --subscription <id> --resource-group <rg> --name <name> --query key1 --output tsv`
-into `AZURE_SPEECH_KEY`, without displaying the result. Check each command's
-exit status and reject empty values before building. Use the README's
-PowerShell or macOS/Linux setup snippets when working from this package.
-For a standalone installed skill, follow the same capture/check procedure.
-Disable shell tracing and do not use CLI debug logging.
+```dotenv
+AZURE_SPEECH_AUTH=cli
+AZURE_SPEECH_ENDPOINT=https://<custom-name>.cognitiveservices.azure.com/
+```
 
-The caller needs permission to read the resource and list its keys.
-If policy disables key authentication or access is denied, stop and consult
-the resource owner; do not change policy, grant roles, or rotate keys.
-Run the build in the configured terminal, or launch Copilot CLI from it.
-An already-running Copilot app will not inherit newly set shell variables.
-Do not request secrets in chat or imply that Entra/keyless auth is implemented.
+Put the actual endpoint only in the topic's ignored `.env` or environment,
+not in committed source, documentation, or example configuration. Have the
+user run `az login --tenant <tenant-id>` and
+`az account set --subscription <subscription-id>` themselves, check exit
+status, and verify the selected account with `az account show`. Do not print
+or copy access tokens. The caller needs Cognitive Services Speech User
+access and an existing custom-subdomain endpoint; a regional endpoint is
+not sufficient. Do not create domains (an irreversible operation), grant
+roles, change firewall settings, or reenable API keys to work around errors.
+
+The skill runtime needs `azure-identity>=1.25,<2` and
+`azure-cognitiveservices-speech>=1.52,<2` in addition to Manim. Restore the
+package dependencies, not application dependencies. CLI mode uses
+`AzureCliCredential` and the Speech SDK's token-credential support. Tokens
+are obtained from the CLI as needed and never saved in output/cache files.
+There is no credential-chain or key fallback. Keep API keys disabled when
+organizational policy requires it.
+
+Environment values override `.env`. Without an explicit auth mode, an
+endpoint selects CLI mode; otherwise legacy key mode is retained. In CLI
+mode, key and region settings are ignored. Optional key mode requires
+`AZURE_SPEECH_AUTH=key`, `AZURE_SPEECH_KEY`, and `AZURE_SPEECH_REGION`; use
+it only if policy permits it. Never request secrets in chat.
+
+`check` is local-only: it validates configuration/dependencies but does not
+test login, RBAC, or connectivity. Silent previews require no Azure login.
+For narrated builds, the process must run as the same OS user with access
+to the CLI login cache. An already-running Copilot app can use that cache
+but will not inherit environment variables set in a separate terminal;
+use the local `.env` for endpoint settings. Disable shell tracing and SDK
+debug logging. On login/authorization failures, report the error and ask
+the user/resource owner to resolve it, rather than changing Azure settings.
 
 Before sending narration, get the user's approval for the text, destination
 resource/region, and potential Azure charges unless already authorized.
@@ -206,9 +222,9 @@ speech request by silently falling back. `--force` regenerates all clips
 and may incur charges again. Cache keys include the text and synthesis
 configuration; changing one segment regenerates only that segment.
 
-The kit uses the regional public Azure Speech REST endpoint, with escaped
-SSML and subscription-key authentication. It does not use M365 browser TTS,
-an undocumented endpoint, or an ElevenLabs dependency.
+The kit escapes narration as SSML. CLI mode uses the public-Azure custom
+endpoint with the Speech SDK; optional key mode uses regional REST.
+It does not use M365 browser TTS, an undocumented endpoint, or ElevenLabs.
 
 ## 7. Review and hand off
 

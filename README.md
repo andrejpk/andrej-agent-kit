@@ -103,71 +103,88 @@ environment rather than adding Manim to the application project's dependencies.
 Use an existing Azure Speech resource. This package does not provision resources,
 change permissions, or make paid calls during tests or silent previews.
 
-Set `AZURE_SPEECH_REGION` to the resource's region (for example, `eastus`) and
-inject `AZURE_SPEECH_KEY` using your approved secret-management tooling.
-Alternatively, copy the example's `.env.example` to `.env` beside `script.py`
-and fill it in locally. Environment variables take precedence over that file.
-`.env` is ignored by Git. Never paste keys into chat, scripts, or command
-arguments. The implementation deliberately does not execute secret-retrieval
-shell commands or search unrelated credential stores.
+### Recommended: keyless Azure CLI authentication
 
-### Use your Azure CLI login to load the credentials
+API keys can remain disabled. Use an existing Speech resource with a custom
+subdomain and **Cognitive Services Speech User** access for your signed-in
+identity. Management-plane Reader access alone is not sufficient. If access
+or the custom subdomain is missing, consult the resource owner; do not change
+policy or assign roles as part of this workflow. Creating a custom subdomain
+is irreversible. Sovereign-cloud endpoints are not supported.
 
-`az login` authenticates the Azure CLI, not this package's Speech requests.
-The current client uses a Speech resource key, not a CLI/Entra access token.
-Use an **existing, approved Speech resource** with local/key authentication
-enabled. You need its subscription ID, resource group, and resource name,
-plus permission to read the resource and list its keys. Ordinary Reader
-access is not enough to list keys. If access or key authentication is denied,
-stop and consult the resource owner; do not weaken policy or rotate keys.
-
-Run this locally in PowerShell, replacing the three placeholders:
+Install the declared dependencies with `uv sync` in the skill package, not
+your application repository. Install Azure CLI separately if needed, then
+sign into the correct work tenant and subscription:
 
 ```powershell
-az login --output none
+az login --tenant "<tenant-id>" --output none
 if ($LASTEXITCODE -ne 0) { throw "Azure login failed" }
-
-$subscription = "<subscription-id>"
-$resourceGroup = "<resource-group>"
-$speechResource = "<speech-resource-name>"
-
-$env:AZURE_SPEECH_REGION = az cognitiveservices account show --subscription $subscription --resource-group $resourceGroup --name $speechResource --query location --output tsv --only-show-errors
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($env:AZURE_SPEECH_REGION)) {
-    throw "Could not read the Speech resource region"
-}
-$env:AZURE_SPEECH_KEY = az cognitiveservices account keys list --subscription $subscription --resource-group $resourceGroup --name $speechResource --query key1 --output tsv --only-show-errors
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($env:AZURE_SPEECH_KEY)) {
-    throw "Could not retrieve the Speech resource key"
-}
+az account set --subscription "<subscription-id>"
+if ($LASTEXITCODE -ne 0) { throw "Azure subscription selection failed" }
+az account show --query "{tenant:tenantId,subscription:id,user:user.name}" --output json
 ```
 
-The assignments capture the key without displaying it or writing a `.env`
-file. Do not run with shell tracing, Azure CLI `--debug`, or environment
-dumps. Run the video command **in that same terminal**. An already-running
-Copilot app does not inherit environment variables set in a different shell.
-For Copilot CLI, launch it from the configured terminal; for the app, use
-its approved environment/secret configuration or run the build yourself.
-No secret should be pasted into chat.
-
-On macOS/Linux, the equivalent is:
+On macOS/Linux:
 
 ```bash
-az login --output none &&
-subscription="<subscription-id>" &&
-resource_group="<resource-group>" &&
-speech_resource="<speech-resource-name>" &&
-AZURE_SPEECH_REGION="$(az cognitiveservices account show --subscription "$subscription" --resource-group "$resource_group" --name "$speech_resource" --query location --output tsv --only-show-errors)" &&
-test -n "$AZURE_SPEECH_REGION" &&
-AZURE_SPEECH_KEY="$(az cognitiveservices account keys list --subscription "$subscription" --resource-group "$resource_group" --name "$speech_resource" --query key1 --output tsv --only-show-errors)" &&
-test -n "$AZURE_SPEECH_KEY" &&
-export AZURE_SPEECH_REGION AZURE_SPEECH_KEY ||
-{ echo "Azure Speech credential setup failed; do not run the build." >&2; }
+az login --tenant "<tenant-id>" --output none &&
+az account set --subscription "<subscription-id>" &&
+az account show --query '{tenant:tenantId,subscription:id,user:user.name}' --output json
 ```
 
-Disable shell tracing (`set +x`) before retrieval if it is enabled. These
-commands read the existing resource and key; they do not create resources,
-change permissions, or generate paid speech. If you do not have a resource
-yet, arrange one through your Azure administrator before proceeding.
+Copy `.env.example` to `.env` beside the topic's `script.py` (do not overwrite
+an existing file), and configure your endpoint **locally**:
+
+```dotenv
+AZURE_SPEECH_AUTH=cli
+AZURE_SPEECH_ENDPOINT=https://<custom-name>.cognitiveservices.azure.com/
+```
+
+Use the HTTPS resource root, not a regional endpoint, service path, query
+string, or token URL. Do not commit your endpoint, tenant, or subscription;
+checked-in examples use placeholders. `.env` is Git-ignored. No resource key,
+region, resource ID, or copied access token is needed in CLI mode.
+
+The Azure Identity `AzureCliCredential` uses the current user's CLI login;
+the Speech SDK requests short-lived tokens as needed for the Cognitive
+Services scope. Tokens are not written to project files, audio metadata, or
+logs. Azure CLI manages its own login cache. The client does not try other
+credential providers, retrieve resource keys, or fall back to keys on failure.
+
+Environment variables override `.env` values. With no `AZURE_SPEECH_AUTH`,
+an endpoint selects CLI mode; otherwise the legacy key mode is retained.
+Set `AZURE_SPEECH_AUTH=cli` explicitly to avoid ambiguity. Existing key/region
+values are ignored in CLI mode. Silent previews do not contact Azure or
+require Azure SDK packages, an endpoint, or a login.
+
+Run under the same OS user and Azure CLI configuration used for `az login`.
+An already-running Copilot app can use that CLI login cache, but it will not
+inherit environment variables newly set in another terminal. Use the topic's
+local `.env` for endpoint configuration in that case. Do not enable shell
+tracing, Azure SDK debug logging, or environment dumps.
+
+`check` validates local configuration and installed dependencies only. It
+does not acquire a token, verify RBAC, or call Speech. A narrated build can
+incur charges and needs content/destination approval. On authentication
+failure, verify the CLI tenant/subscription and log in again if required;
+on authorization failure, ask the resource owner to verify Speech User
+access and allow time for role propagation. Network-restricted resources
+also require your machine to have approved network/DNS access; never disable
+firewalls or TLS checks to get around an error.
+
+### Optional legacy API-key mode
+
+Only where organizational policy permits keys, configure these locally:
+
+```dotenv
+AZURE_SPEECH_AUTH=key
+AZURE_SPEECH_KEY=your-local-key
+AZURE_SPEECH_REGION=eastus
+```
+
+Use the resource's actual region. Keys belong in the ignored `.env` or an
+approved secret-injected environment, never in chat or source code.
+Key mode retains the regional public-Azure REST implementation.
 
 ### Render from the configured terminal
 
@@ -181,11 +198,13 @@ uv run python "$skill\scripts\video.py" review "$topic" --quality high
 Azure receives the narration text. Confirm that the content is approved for
 that resource and region before generation; synthesis can incur charges.
 The default voice is `en-US-JennyNeural`; edit `VOICE_NAME`, `LANGUAGE`, and
-`SPEECH_RATE` in `script.py` to change it. Regional public-Azure Speech endpoints
-are supported; private/custom endpoints, sovereign clouds, and Entra
-authentication are not implemented in this version.
+`SPEECH_RATE` in `script.py` to change it. CLI mode uses the custom resource
+endpoint via the Speech SDK; key mode uses the regional REST endpoint.
 
-Clips are cached by text, voice, language, rate, region, and output format.
+Clips are cached by text, voice, language, rate, output format, and provider
+configuration (region in key mode, custom endpoint in CLI mode).
+Changing the endpoint or authentication mode invalidates the relevant cache;
+token renewal does not.
 Changing one segment regenerates only that clip. Authentication, network, or
 rendering errors fail the build instead of producing an apparently successful
 silent final video. `--silent` explicitly disables all audio, including cached
@@ -200,7 +219,7 @@ Silent previews include `-silent` in their filename.
 | Path under `.github/skills/explainer-video` | Purpose |
 | --- | --- |
 | `SKILL.md` | Copilot workflow, content safeguards, visual and review guidance |
-| `scripts/azure_narration.py` | Azure REST synthesis, SSML, per-segment cache |
+| `scripts/azure_narration.py` | Azure CLI/Entra SDK and key-based REST synthesis, SSML, cache |
 | `scripts/explainer_kit.py` | Visual helpers and narration-paced Manim scenes |
 | `scripts/video.py` | Cross-platform prerequisite checks, build, review |
 | `examples/banking-transfer` | Complete narration and animated scenes |
@@ -229,6 +248,6 @@ provided folder; no new license or ownership grant is inferred here.
 References:
 [Copilot agent skills](https://docs.github.com/en/copilot/concepts/customizations/agent-skills),
 [Azure Speech REST API](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech),
-[Azure CLI resource keys](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/keys#az-cognitiveservices-account-keys-list),
+[Speech Entra authentication](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/how-to-configure-azure-ad-auth),
 [Azure Speech voices](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=tts),
 [Azure Speech pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/speech-services/).

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import io
 import json
 import os
 import subprocess
@@ -11,6 +12,7 @@ import sys
 import tempfile
 import unittest
 import urllib.error
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from xml.etree import ElementTree as ET
@@ -23,7 +25,7 @@ import azure_narration as azure
 import video
 
 
-class NarrationTests(unittest.TestCase):
+class NarrationFixture(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -51,6 +53,8 @@ class NarrationTests(unittest.TestCase):
             "audio_sha256": hashlib.sha256(b"mock-audio").hexdigest(),
         }), encoding="utf-8")
 
+
+class NarrationTests(NarrationFixture):
     def test_environment_precedes_dotenv(self):
         (self.project / ".env").write_text(
             "AZURE_SPEECH_KEY='file-key'\nAZURE_SPEECH_REGION=westus\n", encoding="utf-8",
@@ -346,6 +350,196 @@ class PackageTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     video.build(project, "low", True, False)
             self.assertFalse(manifest.exists())
+
+
+class CliSpeechTests(NarrationFixture):
+    """Keyless contract tests use fake SDK modules and never run az or Speech."""
+
+    def setUp(self):
+        super().setUp()
+        self.endpoint = "https://example-speech.cognitiveservices.azure.com/"
+        os.environ.update(AZURE_SPEECH_AUTH="cli", AZURE_SPEECH_ENDPOINT=self.endpoint)
+
+    def fake_sdk(self):
+        sdk = MagicMock()
+        sdk.ResultReason.SynthesizingAudioCompleted = "completed"
+        sdk.ResultReason.Canceled = "canceled"
+        result = sdk.SpeechSynthesizer.return_value.speak_ssml_async.return_value.get.return_value
+        result.reason = "completed"
+        result.audio_data = b"fake-mp3"
+        identity = MagicMock()
+        credential = identity.AzureCliCredential.return_value.__enter__.return_value
+
+        class AuthenticationError(Exception):
+            pass
+
+        class UnavailableError(Exception):
+            pass
+
+        identity.CredentialUnavailableError = UnavailableError
+        core = MagicMock()
+        core.ClientAuthenticationError = AuthenticationError
+        modules = {
+            "azure": MagicMock(), "azure.core": MagicMock(), "azure.core.exceptions": core,
+            "azure.identity": identity, "azure.cognitiveservices": MagicMock(),
+            "azure.cognitiveservices.speech": sdk,
+        }
+        modules["azure"].cognitiveservices.speech = sdk
+        return patch.dict(sys.modules, modules), sdk, identity, credential, result, AuthenticationError
+
+    def test_cli_uses_endpoint_and_ignores_stale_key_region(self):
+        os.environ.update(AZURE_SPEECH_KEY="ignored-key", AZURE_SPEECH_REGION="invalid/region")
+        narration = azure.Narration(self.project)
+        self.assertEqual(narration.auth_mode, "cli")
+        self.assertEqual(narration.endpoint, self.endpoint)
+        self.assertEqual(narration.region, "")
+
+    def test_endpoint_alone_selects_cli_but_explicit_key_preserves_legacy(self):
+        del os.environ["AZURE_SPEECH_AUTH"]
+        self.assertEqual(azure.speech_auth(self.project), ("cli", self.endpoint))
+        os.environ["AZURE_SPEECH_AUTH"] = "key"
+        self.assertEqual(azure.speech_auth(self.project), ("key", ""))
+
+    def test_dotenv_config_and_environment_precedence(self):
+        del os.environ["AZURE_SPEECH_AUTH"]
+        del os.environ["AZURE_SPEECH_ENDPOINT"]
+        (self.project / ".env").write_text(
+            f"AZURE_SPEECH_AUTH=cli\nAZURE_SPEECH_ENDPOINT={self.endpoint}\n", encoding="utf-8",
+        )
+        self.assertEqual(azure.speech_auth(self.project), ("cli", self.endpoint))
+        os.environ["AZURE_SPEECH_ENDPOINT"] = "https://override.cognitiveservices.azure.com"
+        self.assertEqual(azure.speech_auth(self.project)[1], "https://override.cognitiveservices.azure.com/")
+
+    def test_cli_rejects_unsafe_or_regional_endpoints(self):
+        for endpoint in (
+            "", "http://example.cognitiveservices.azure.com", "https://eastus.api.cognitive.microsoft.com/",
+            "https://example.cognitiveservices.azure.com.evil.test/", "https://user@example.cognitiveservices.azure.com/",
+            "https://example.cognitiveservices.azure.com:443/", "https://example.cognitiveservices.azure.com/tts",
+            "https://example.cognitiveservices.azure.com/?x=1", "https://example.cognitiveservices.azure.com/#fragment",
+        ):
+            with self.subTest(endpoint=endpoint):
+                os.environ["AZURE_SPEECH_ENDPOINT"] = endpoint
+                with self.assertRaisesRegex(ValueError, "CLI authentication requires"):
+                    azure.Narration(self.project)
+        os.environ["AZURE_SPEECH_AUTH"] = "typo"
+        with self.assertRaisesRegex(ValueError, "must be cli or key"):
+            azure.speech_auth(self.project)
+
+    def test_silent_ignores_invalid_endpoint_and_never_authenticates(self):
+        os.environ["AZURE_SPEECH_ENDPOINT"] = "invalid"
+        with patch.object(azure, "synthesize_cli") as synth:
+            narration = azure.Narration(self.project, silent=True)
+            self.assertGreater(narration.duration("intro"), 0)
+            synth.assert_not_called()
+
+    def test_cli_cache_is_endpoint_specific_and_auth_mode_specific(self):
+        narration = azure.Narration(self.project)
+        self.seed(narration)
+        self.assertTrue(narration.has_audio("intro"))
+        os.environ["AZURE_SPEECH_ENDPOINT"] = "https://second.cognitiveservices.azure.com/"
+        self.assertFalse(azure.Narration(self.project).has_audio("intro"))
+        os.environ["AZURE_SPEECH_AUTH"] = "key"
+        self.assertFalse(azure.Narration(self.project).has_audio("intro"))
+
+    def test_cli_generates_caches_without_key_and_never_calls_key_transport(self):
+        narration = azure.Narration(self.project)
+        with patch.object(azure, "check_cli_dependencies"), patch.object(
+            azure, "synthesize_cli", return_value=b"fake-mp3",
+        ) as synth, patch.object(azure, "synthesize") as key_synth, patch.object(
+            azure, "speech_credentials",
+        ) as keys, patch.object(azure, "probe_seconds", return_value=2):
+            narration.generate()
+            self.assertEqual(synth.call_count, 2)
+            self.assertEqual(synth.call_args.args[0], self.endpoint)
+            narration.generate()
+            self.assertEqual(synth.call_count, 2)
+            key_synth.assert_not_called()
+            keys.assert_not_called()
+        meta = json.loads(narration.clip("intro").with_suffix(".json").read_text(encoding="utf-8"))
+        self.assertEqual(set(meta), {"digest", "seconds", "audio_sha256"})
+
+    def test_cli_failure_never_falls_back_or_changes_cache(self):
+        narration = azure.Narration(self.project)
+        self.seed(narration)
+        with patch.object(azure, "check_cli_dependencies"), patch.object(
+            azure, "synthesize_cli", side_effect=RuntimeError("login failed"),
+        ), patch.object(azure, "synthesize") as keys:
+            with self.assertRaisesRegex(RuntimeError, "login failed"):
+                narration.generate(force=True)
+            keys.assert_not_called()
+        self.assertEqual(narration.clip("intro").read_bytes(), b"mock-audio")
+
+    def test_sdk_receives_cli_credential_ssml_mp3_and_no_speaker_output(self):
+        modules, sdk, identity, credential, result, _ = self.fake_sdk()
+        body = azure.ssml("A & B", "en-US-JennyNeural", "en-US", "0%")
+        with modules:
+            self.assertEqual(azure.synthesize_cli(self.endpoint, body), b"fake-mp3")
+        identity.AzureCliCredential.assert_called_once_with(process_timeout=30)
+        credential.get_token.assert_called_once_with(azure.TOKEN_SCOPE)
+        sdk.SpeechConfig.assert_called_once_with(endpoint=self.endpoint, token_credential=credential)
+        sdk.SpeechConfig.return_value.set_speech_synthesis_output_format.assert_called_once_with(
+            sdk.SpeechSynthesisOutputFormat.Audio24Khz96KBitRateMonoMp3,
+        )
+        sdk.SpeechSynthesizer.assert_called_once_with(
+            speech_config=sdk.SpeechConfig.return_value, audio_config=None,
+        )
+        sdk.SpeechSynthesizer.return_value.speak_ssml_async.assert_called_once_with(body.decode("utf-8"))
+        identity.AzureCliCredential.return_value.__exit__.assert_called_once()
+
+    def test_expired_login_is_actionable_and_redacted(self):
+        modules, sdk, _, credential, _, error = self.fake_sdk()
+        credential.get_token.side_effect = error("sensitive diagnostic")
+        with modules, self.assertRaisesRegex(RuntimeError, "az login") as raised:
+            azure.synthesize_cli(self.endpoint, b"text")
+        self.assertNotIn("sensitive diagnostic", str(raised.exception))
+        sdk.SpeechConfig.assert_not_called()
+
+    def test_sdk_cancellation_and_errors_are_redacted(self):
+        modules, sdk, _, _, result, _ = self.fake_sdk()
+        result.reason = "canceled"
+        result.cancellation_details.error_code.name = "AuthenticationFailure"
+        result.cancellation_details.error_details = "sensitive diagnostic"
+        with modules, self.assertRaisesRegex(RuntimeError, "AuthenticationFailure") as raised:
+            azure.synthesize_cli(self.endpoint, b"text")
+        self.assertNotIn("sensitive diagnostic", str(raised.exception))
+        modules, sdk, _, _, _, _ = self.fake_sdk()
+        sdk.SpeechConfig.side_effect = RuntimeError("sensitive diagnostic")
+        with modules, self.assertRaisesRegex(RuntimeError, "Speech SDK failed") as raised:
+            azure.synthesize_cli(self.endpoint, b"text")
+        self.assertNotIn("sensitive diagnostic", str(raised.exception))
+
+    def test_sdk_empty_audio_fails(self):
+        modules, _, _, _, result, _ = self.fake_sdk()
+        result.audio_data = b""
+        with modules, self.assertRaisesRegex(RuntimeError, "empty audio"):
+            azure.synthesize_cli(self.endpoint, b"text")
+
+    def test_cli_dependencies_are_checked_without_authentication(self):
+        with patch.object(azure.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "Azure CLI is missing"):
+                azure.check_cli_dependencies()
+        with patch.object(azure.shutil, "which", return_value="az"), patch.object(
+            azure.importlib.metadata, "version", side_effect=azure.importlib.metadata.PackageNotFoundError,
+        ):
+            with self.assertRaisesRegex(ValueError, "restore"):
+                azure.check_cli_dependencies()
+        with patch.object(azure.shutil, "which", return_value="az"), patch.object(
+            azure.importlib.metadata, "version", return_value="1.20.0",
+        ):
+            with self.assertRaisesRegex(ValueError, "requires"):
+                azure.check_cli_dependencies()
+
+    def test_check_reports_cli_mode_without_token_or_synthesis(self):
+        (self.project / "scenes.py").write_text("ORDER = ['S1']", encoding="utf-8")
+        output = io.StringIO()
+        with patch.object(video, "check_cli_dependencies"), patch.object(
+            azure, "synthesize_cli",
+        ) as synth, redirect_stdout(output):
+            video.check(self.project)
+        self.assertIn("Azure CLI authentication configured", output.getvalue())
+        self.assertIn("have NOT been tested", output.getvalue())
+        self.assertNotIn("key and region configured", output.getvalue())
+        synth.assert_not_called()
 
 
 class WorkspaceTests(unittest.TestCase):

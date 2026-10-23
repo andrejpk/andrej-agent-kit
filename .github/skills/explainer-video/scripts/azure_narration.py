@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import json
 import math
 import os
 import re
 import runpy
+import shutil
 import subprocess
 import sys
 import urllib.error
@@ -19,6 +21,7 @@ WORDS_PER_SECOND = 2.5
 OUTPUT_FORMAT = "audio-24khz-96kbitrate-mono-mp3"
 SSML_NS = "http://www.w3.org/2001/10/synthesis"
 XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
+TOKEN_SCOPE = "https://cognitiveservices.azure.com/.default"
 
 
 def work_directory(project: Path) -> Path:
@@ -96,6 +99,81 @@ def speech_credentials(project: Path) -> tuple[str, str]:
     if not key or not region:
         raise ValueError("Set AZURE_SPEECH_KEY and AZURE_SPEECH_REGION, or request an explicit --silent preview")
     return key, region
+
+
+def speech_auth(project: Path) -> tuple[str, str]:
+    endpoint = setting(project, "AZURE_SPEECH_ENDPOINT")
+    mode = setting(project, "AZURE_SPEECH_AUTH") or ("cli" if endpoint else "key")
+    if mode not in ("cli", "key"):
+        raise ValueError("AZURE_SPEECH_AUTH must be cli or key")
+    if mode == "key":
+        return mode, ""
+    if not re.fullmatch(
+        r"https://[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\.cognitiveservices\.azure\.com/?",
+        endpoint, re.IGNORECASE,
+    ):
+        raise ValueError(
+            "CLI authentication requires AZURE_SPEECH_ENDPOINT=https://<custom-name>.cognitiveservices.azure.com/ "
+            "(public Azure HTTPS resource root, not a regional endpoint)"
+        )
+    return mode, endpoint.lower().rstrip("/") + "/"
+
+
+def check_cli_dependencies() -> None:
+    if shutil.which("az") is None:
+        raise ValueError("Azure CLI is missing from PATH; install it and run az login in the resource's tenant")
+    for package in ("azure-identity", "azure-cognitiveservices-speech"):
+        try:
+            version = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            raise ValueError(f"{package} is missing; restore the skill package dependencies with uv sync") from None
+        minimum = (1, 52) if package == "azure-cognitiveservices-speech" else (1, 25)
+        parts = tuple(int(part) for part in version.split(".")[:2])
+        if parts < minimum or parts >= (2, 0):
+            raise ValueError(f"{package} requires >={minimum[0]}.{minimum[1]},<2; run uv sync")
+
+
+def synthesize_cli(endpoint: str, body: bytes) -> bytes:
+    """Use only the CLI credential, never a fallback credential chain or a key."""
+    from azure.core.exceptions import ClientAuthenticationError
+    from azure.identity import AzureCliCredential, CredentialUnavailableError
+    import azure.cognitiveservices.speech as speechsdk
+
+    with AzureCliCredential(process_timeout=30) as credential:
+        try:
+            # Fail with actionable guidance before entering the native SDK callback.
+            credential.get_token(TOKEN_SCOPE)
+        except (ClientAuthenticationError, CredentialUnavailableError):
+            raise RuntimeError(
+                "Azure CLI authentication failed. Run az login --tenant <tenant-id> and "
+                "az account set --subscription <subscription-id> in this user's environment. "
+                "No API-key fallback was attempted."
+            ) from None
+        try:
+            config = speechsdk.SpeechConfig(endpoint=endpoint, token_credential=credential)
+            config.set_speech_synthesis_output_format(
+                speechsdk.SpeechSynthesisOutputFormat.Audio24Khz96KBitRateMonoMp3,
+            )
+            synthesizer = speechsdk.SpeechSynthesizer(speech_config=config, audio_config=None)
+            result = synthesizer.speak_ssml_async(body.decode("utf-8")).get()
+        except RuntimeError:
+            raise RuntimeError(
+                "Azure Speech SDK failed. Check CLI login, custom endpoint, network access, "
+                "and Cognitive Services Speech User permissions. No API-key fallback was attempted."
+            ) from None
+        if result.reason != speechsdk.ResultReason.SynthesizingAudioCompleted:
+            if result.reason == speechsdk.ResultReason.Canceled:
+                # Native error_details can contain request data; do not log them.
+                code = result.cancellation_details.error_code.name
+                raise RuntimeError(
+                    f"Azure Speech synthesis canceled ({code}). Check CLI login, Speech User permissions, "
+                    "endpoint/network access, voice, and quota. No API-key fallback was attempted."
+                )
+            raise RuntimeError("Azure Speech SDK did not complete synthesis; no audio was cached")
+        audio = bytes(result.audio_data)
+        if not audio:
+            raise RuntimeError("Azure Speech returned empty audio")
+        return audio
 
 
 def ssml(text: str, voice: str, language: str, rate: str) -> bytes:
@@ -176,7 +254,8 @@ class Narration:
             raise ValueError("SPEECH_RATE must be a percentage string")
         if not -50 <= int(self.rate[:-1]) <= 100:
             raise ValueError("SPEECH_RATE must be between -50% and 100%")
-        self.region = "" if self.silent else speech_region(self.project)
+        self.auth_mode, self.endpoint = ("key", "") if self.silent else speech_auth(self.project)
+        self.region = "" if self.silent or self.auth_mode == "cli" else speech_region(self.project)
 
     @classmethod
     def beside(cls, file: str) -> Narration:
@@ -193,6 +272,8 @@ class Narration:
             "voice": self.voice, "language": self.language, "rate": self.rate,
             "region": self.region, "format": OUTPUT_FORMAT,
         }
+        if self.auth_mode == "cli":
+            payload.update(provider="azure-speech-sdk-cli-v1", endpoint=self.endpoint)
         return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
     def metadata(self, key: str) -> dict | None:
@@ -233,11 +314,18 @@ class Narration:
         if not missing:
             print(f"Using {len(self.segments)} cached Azure narration clips")
             return
-        api_key, region = speech_credentials(self.project)
+        if self.auth_mode == "cli":
+            check_cli_dependencies()
+        else:
+            api_key, region = speech_credentials(self.project)
         self.audio.mkdir(parents=True, exist_ok=True)
         for key in missing:
             print(f"Synthesizing {key}", flush=True)
-            content = synthesize(api_key, region, ssml(self.segments[key], self.voice, self.language, self.rate))
+            body = ssml(self.segments[key], self.voice, self.language, self.rate)
+            if self.auth_mode == "cli":
+                content = synthesize_cli(self.endpoint, body)
+            else:
+                content = synthesize(api_key, region, body)
             clip = self.clip(key)
             temp_audio = clip.with_suffix(".mp3.part")
             temp_meta = clip.with_suffix(".json.part")
