@@ -29,12 +29,27 @@ def M(text: str, size: float = 24, color=FG, **kw) -> Text:
     return Text(text, font=MONO, font_size=size, color=color, **kw)
 
 
+_STRUT = "Hdgjy"
+
+
+def L(text: str, size: float = 20, color=FG, weight=NORMAL, font: str | None = None) -> VGroup:
+    """Single-line label with a fixed line box (ascender to descender), so labels with and without
+    descenders get the same height and share a baseline when centered in a shape."""
+    full = Text(text + _STRUT, font=font or FONT, font_size=size, color=color, weight=weight, disable_ligatures=True)
+    n = len(full.submobjects) - len(_STRUT)
+    glyphs = VGroup(*full.submobjects[:n])
+    ref = VGroup(*full.submobjects[n:])
+    x = glyphs.get_center()[0]
+    strut = Line([x, ref.get_top()[1], 0], [x, ref.get_bottom()[1], 0], stroke_width=0, stroke_opacity=0)
+    return VGroup(glyphs, strut)
+
+
 def box(color, w: float = 1.2, h: float = 0.5, label: str | None = None, size: float = 20, fill: float = 0.18) -> VGroup:
     rect = RoundedRectangle(corner_radius=0.1, width=w, height=h, stroke_color=color, stroke_width=2.5)
     rect.set_fill(color, opacity=fill)
     group = VGroup(rect)
     if label:
-        group.add(T(label, size, color=FG).move_to(rect))
+        group.add(L(label, size, color=FG).move_to(rect))
     return group
 
 
@@ -46,10 +61,10 @@ def lit(node: VGroup, on: bool = True, fill: float = 0.18) -> Animation:
 
 
 def chip(text: str, color, size: float = 20) -> VGroup:
-    label = T(text, size, color=BG, weight=BOLD)
+    label = L(text, size, color=BG, weight=BOLD)
     background = RoundedRectangle(
         corner_radius=0.08, width=max(label.width + 0.22, 0.42),
-        height=label.height + 0.18, stroke_width=0,
+        height=label.height + 0.1, stroke_width=0,
     ).set_fill(color, 1)
     return VGroup(background, label.move_to(background))
 

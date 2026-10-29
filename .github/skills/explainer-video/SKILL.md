@@ -147,8 +147,12 @@ pads to its end. End one segment before starting the next. The kit warns
 when animation overruns narration. Use one scene per section; set `ORDER`
 to the exact rendering and joining order.
 
-Helpers include `T`, `M`, `box`, `chip`, `edge`, `flow`, `database`, `device`,
-`stat`, `lit`, and `heading`. A `box`'s first member is its outline and its
+Helpers include `T`, `M`, `L`, `box`, `chip`, `edge`, `flow`, `database`, `device`,
+`stat`, `lit`, and `heading`. Use `L` for single-line labels placed inside
+shapes: it reserves a fixed ascender-to-descender line box, so labels with
+and without descenders (g, y, p) share a height and baseline. Use `T` for
+free text and multi-line text. `box` and `chip` already use `L`. A `box`'s
+first member is its outline and its
 second is its label. Use `lit` to dim or restore it; `set_opacity(1)` would
 make a faint fill solid. Dash individual paths, not a whole `VGroup`.
 
