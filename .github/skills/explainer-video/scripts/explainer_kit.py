@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import warnings
 from pathlib import Path
 
@@ -14,28 +15,71 @@ BG = "#0e1116"
 FG = "#e8e6e3"
 DIM = "#7d8590"
 FONT = "Inter"
+DISPLAY = "Inter"
 MONO = "DejaVu Sans Mono"
 C1, C2, C3, C4, C5 = BLUE_C, TEAL_C, GREEN_C, YELLOW_C, GOLD_E
 C_STORE = PURPLE_B
 C_BAD = RED_C
 C_FEED = WHITE
+ACCENT = TEAL_C
+
+# Vivid palette, available as constants and via use_theme("vivid").
+VIVID_PURPLE = "#8661C5"
+VIVID_LIGHT_PURPLE = "#C5B4E3"
+VIVID_MAGENTA = "#C03BC4"
+VIVID_LIGHT_MAGENTA = "#D59ED7"
+VIVID_ORANGE = "#FF5C39"
+VIVID_GREEN = "#8DE971"
+VIVID_YELLOW = "#FFB900"
+VIVID_TEAL = "#38B9B6"
+VIVID_DEEP_TEAL = "#28647C"
+VIVID_LIGHT_BLUE = "#8DC8E8"
+VIVID_GREY = "#A19F9D"
+
+THEMES = {
+    "default": dict(
+        FG=FG, DIM=DIM, FONT=FONT, DISPLAY=DISPLAY, MONO=MONO,
+        C1=C1, C2=C2, C3=C3, C4=C4, C5=C5, C_STORE=C_STORE, C_BAD=C_BAD, ACCENT=ACCENT,
+    ),
+    # Windows 11 system fonts (Segoe UI Variable, Cascadia Mono); elsewhere Pango substitutes a fallback font.
+    "vivid": dict(
+        FG="#F4F3F5", DIM="#8A8886",
+        FONT="Segoe UI Variable Text", DISPLAY="Segoe UI Variable Display", MONO="Cascadia Mono",
+        C1=VIVID_LIGHT_BLUE, C2=VIVID_TEAL, C3=VIVID_GREEN, C4=VIVID_YELLOW, C5=VIVID_ORANGE,
+        C_STORE=VIVID_PURPLE, C_BAD=VIVID_ORANGE, ACCENT=VIVID_TEAL,
+    ),
+}
 
 
-def T(text: str, size: float = 30, color=FG, weight=NORMAL, **kw) -> Text:
-    return Text(text, font=FONT, font_size=size, color=color, weight=weight, **kw)
+def use_theme(name: str, namespace: dict | None = None) -> None:
+    """Switch colors and fonts. Call right after `from explainer_kit import *`, before building mobjects.
+
+    Updates this module and the caller's globals, so names imported with `*` see the new values.
+    """
+    if name not in THEMES:
+        raise ValueError(f"Unknown theme {name!r}; choose from {', '.join(THEMES)}")
+    values = THEMES[name]
+    globals().update(values)
+    target = namespace if namespace is not None else sys._getframe(1).f_globals
+    if target is not globals():
+        target.update(values)
 
 
-def M(text: str, size: float = 24, color=FG, **kw) -> Text:
-    return Text(text, font=MONO, font_size=size, color=color, **kw)
+def T(text: str, size: float = 30, color=None, weight=NORMAL, font: str | None = None, **kw) -> Text:
+    return Text(text, font=font or FONT, font_size=size, color=color or FG, weight=weight, **kw)
+
+
+def M(text: str, size: float = 24, color=None, **kw) -> Text:
+    return Text(text, font=MONO, font_size=size, color=color or FG, **kw)
 
 
 _STRUT = "Hdgjy"
 
 
-def L(text: str, size: float = 20, color=FG, weight=NORMAL, font: str | None = None) -> VGroup:
+def L(text: str, size: float = 20, color=None, weight=NORMAL, font: str | None = None) -> VGroup:
     """Single-line label with a fixed line box (ascender to descender), so labels with and without
     descenders get the same height and share a baseline when centered in a shape."""
-    full = Text(text + _STRUT, font=font or FONT, font_size=size, color=color, weight=weight, disable_ligatures=True)
+    full = Text(text + _STRUT, font=font or FONT, font_size=size, color=color or FG, weight=weight, disable_ligatures=True)
     n = len(full.submobjects) - len(_STRUT)
     glyphs = VGroup(*full.submobjects[:n])
     ref = VGroup(*full.submobjects[n:])
@@ -69,7 +113,8 @@ def chip(text: str, color, size: float = 20) -> VGroup:
     return VGroup(background, label.move_to(background))
 
 
-def database(color=C_STORE, w: float = 0.9, h: float = 1.0) -> VGroup:
+def database(color=None, w: float = 0.9, h: float = 1.0) -> VGroup:
+    color = color or C_STORE
     top = Ellipse(width=w, height=w * 0.32, stroke_color=color, stroke_width=2.5).set_fill(color, 0.35)
     body = Rectangle(width=w, height=h, stroke_width=0).set_fill(color, 0.18)
     body.next_to(top.get_center(), DOWN, buff=0)
@@ -81,7 +126,8 @@ def database(color=C_STORE, w: float = 0.9, h: float = 1.0) -> VGroup:
     return VGroup(body, top, left, right, bottom)
 
 
-def device(w: float = 0.8, h: float = 1.3, color=GREY_B, screen=C1) -> VGroup:
+def device(w: float = 0.8, h: float = 1.3, color=GREY_B, screen=None) -> VGroup:
+    screen = screen or C1
     shell = RoundedRectangle(corner_radius=0.14, width=w, height=h, stroke_color=color, stroke_width=2.5)
     shell.set_fill(GREY_E, 0.6)
     display = RoundedRectangle(corner_radius=0.06, width=w * 0.78, height=h * 0.55, stroke_width=0)
@@ -95,14 +141,14 @@ def edge(a: Mobject, b: Mobject, color=GREY_B, opacity: float = 0.55, width: flo
     return Line(a.get_right(), b.get_left(), color=color, stroke_width=width, stroke_opacity=opacity)
 
 
-def flow(line: Line, color=C_FEED, run_time: float = 0.8, width: float = 6) -> Animation:
+def flow(line: Line, color=None, run_time: float = 0.8, width: float = 6) -> Animation:
     return ShowPassingFlash(
-        line.copy().set_stroke(color, width=width, opacity=1),
+        line.copy().set_stroke(color or C_FEED, width=width, opacity=1),
         time_width=0.45, run_time=run_time,
     )
 
 
-def stat(big: str, small: str, color=FG, size: float = 56) -> VGroup:
+def stat(big: str, small: str, color=None, size: float = 56) -> VGroup:
     return VGroup(
         T(big, size, color=color, weight=BOLD), T(small, 22, color=DIM),
     ).arrange(DOWN, buff=0.12)
@@ -153,8 +199,33 @@ class Narrated(Scene):
         if self.mobjects:
             self.play(FadeOut(Group(*self.mobjects)), run_time=run_time)
 
-    def heading(self, text: str, color=FG) -> Text:
-        return T(text, 40, color=color, weight=BOLD).to_edge(UP, buff=0.45)
+    chapter: str | None = None
+
+    def heading(self, text: str, color=None, chapter: str | None = None) -> VGroup:
+        """Chapter tag above a left-aligned title; animate it with type_in()."""
+        title = T(text, 40, color=color, weight=SEMIBOLD, font=DISPLAY)
+        label = chapter or self.chapter
+        if not label:
+            return VGroup(title).to_corner(UL, buff=0.5)
+        tag_text = T(label.upper(), 17, color=ACCENT, weight=SEMIBOLD, font=DISPLAY)
+        bar = Rectangle(width=0.07, height=tag_text.height * 1.4, stroke_width=0).set_fill(ACCENT, 1)
+        tag = VGroup(bar, tag_text).arrange(RIGHT, buff=0.15)
+        return VGroup(tag, title).arrange(DOWN, aligned_edge=LEFT, buff=0.16).to_corner(UL, buff=0.45)
+
+    def type_in(self, heading: VGroup, per_char: float = 0.035) -> Animation:
+        """Typewriter title with a block cursor; the chapter tag slides in first."""
+        title = heading[-1]
+        cursor = Rectangle(width=0.05, height=title.height * 1.15, stroke_width=0).set_fill(ACCENT, 1)
+        cursor.move_to(title[0]).set_y(title.get_y())
+        typing = TypeWithCursor(title, cursor, leave_cursor_on=False, time_per_char=per_char, buff=0.05)
+        if len(heading) == 1:
+            return typing
+        return Succession(FadeIn(heading[0], shift=RIGHT * 0.25, run_time=0.35), typing)
+
+    @staticmethod
+    def reveal(mob: Mobject, **kw) -> Animation:
+        """Callout entrance: a short fade-up instead of stroke drawing."""
+        return FadeIn(mob, shift=UP * 0.18, **kw)
 
     def tear_down(self):
         if not self._events:
