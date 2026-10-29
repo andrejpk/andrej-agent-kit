@@ -197,7 +197,7 @@ uv run python "$skill\scripts\video.py" review "$topic" --quality high
 
 Azure receives the narration text. Confirm that the content is approved for
 that resource and region before generation; synthesis can incur charges.
-The default voice is `en-US-JennyNeural`; edit `VOICE_NAME`, `LANGUAGE`, and
+The default voice is `en-US-Andrew:DragonHDLatestNeural` (Andrew HD); edit `VOICE_NAME`, `LANGUAGE`, and
 `SPEECH_RATE` in `script.py` to change it. CLI mode uses the custom resource
 endpoint via the Speech SDK; key mode uses the regional REST endpoint.
 
