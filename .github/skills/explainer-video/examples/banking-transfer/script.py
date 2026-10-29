@@ -1,6 +1,6 @@
 """Fictional same-bank transfer: safe retries, not a production banking design."""
 
-VOICE_NAME = "en-US-JennyNeural"
+VOICE_NAME = "en-US-Andrew:DragonHDLatestNeural"
 LANGUAGE = "en-US"
 SPEECH_RATE = "0%"
 

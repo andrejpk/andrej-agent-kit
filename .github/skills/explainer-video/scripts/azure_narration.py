@@ -243,11 +243,14 @@ class Narration:
                 raise ValueError("Segment names must start with a letter and contain only letters, digits, _ or -")
             if not isinstance(text, str) or not text.strip():
                 raise ValueError(f"Segment {key} must contain nonempty narration text")
-        self.voice = script.get("VOICE_NAME", "en-US-JennyNeural")
+        self.voice = script.get("VOICE_NAME", "en-US-Andrew:DragonHDLatestNeural")
         self.language = script.get("LANGUAGE", "en-US")
         self.rate = script.get("SPEECH_RATE", "0%")
-        if not isinstance(self.voice, str) or not re.fullmatch(r"[A-Za-z0-9-]+", self.voice):
-            raise ValueError("VOICE_NAME must be an Azure voice short name")
+        if not isinstance(self.voice, str) or not re.fullmatch(r"[A-Za-z0-9-]+(:[A-Za-z0-9]+)?", self.voice):
+            raise ValueError(
+                "VOICE_NAME must be an Azure voice short name, optionally with one ':Variant' suffix "
+                "(for example en-US-Andrew:DragonHDLatestNeural)"
+            )
         if not isinstance(self.language, str) or not re.fullmatch(r"[a-z]{2,3}-[A-Z]{2}", self.language):
             raise ValueError("LANGUAGE must be a locale such as en-US")
         if not isinstance(self.rate, str) or not re.fullmatch(r"[+-]?\d+%", self.rate):

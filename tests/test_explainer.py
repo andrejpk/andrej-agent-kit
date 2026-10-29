@@ -55,6 +55,28 @@ class NarrationFixture(unittest.TestCase):
 
 
 class NarrationTests(NarrationFixture):
+    def test_default_voice_and_banking_example_use_andrew_hd(self):
+        expected = "en-US-Andrew:DragonHDLatestNeural"
+        self.assertEqual(azure.Narration(self.project).voice, expected)
+        example = azure.Narration(SKILL / "examples" / "banking-transfer", silent=True)
+        self.assertEqual(example.voice, expected)
+
+    def test_hd_and_standard_voice_names_are_accepted_and_preserved_in_ssml(self):
+        for voice in ("en-US-Andrew:DragonHDLatestNeural", "en-US-JennyNeural"):
+            with self.subTest(voice=voice):
+                self.write_script(extra=f"VOICE_NAME = {voice!r}")
+                narration = azure.Narration(self.project)
+                root = ET.fromstring(azure.ssml("Hello.", narration.voice, narration.language, narration.rate))
+                self.assertEqual(root.find(f"{{{azure.SSML_NS}}}voice").attrib["name"], voice)
+
+    def test_voice_names_reject_malformed_variants_and_markup(self):
+        for voice in ("", "en-US-Andrew:", "en-US-Andrew::DragonHDLatestNeural",
+                      "en-US-Andrew:Dragon:HD", "en-US Andrew", 'en-US-Andrew"><voice', None):
+            with self.subTest(voice=voice):
+                self.write_script(extra=f"VOICE_NAME = {voice!r}")
+                with self.assertRaisesRegex(ValueError, "VOICE_NAME"):
+                    azure.Narration(self.project)
+
     def test_environment_precedes_dotenv(self):
         (self.project / ".env").write_text(
             "AZURE_SPEECH_KEY='file-key'\nAZURE_SPEECH_REGION=westus\n", encoding="utf-8",
