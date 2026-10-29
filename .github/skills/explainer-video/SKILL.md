@@ -101,7 +101,7 @@ SEGMENTS = {
     "intro": "A transfer response can be lost after the bank commits the transfer.",
     "retry": "The client retries with the same idempotency key. The bank returns the recorded result instead of moving the money again.",
 }
-VOICE_NAME = "en-US-JennyNeural"
+VOICE_NAME = "en-US-Andrew:DragonHDLatestNeural"
 LANGUAGE = "en-US"
 SPEECH_RATE = "0%"
 ```
@@ -111,7 +111,11 @@ Use one idea per sentence and two to five sentences per segment. Aim for
 "one hundred dollars", "A P I", "idempotency key". Use plain narration text,
 not SSML; the kit escapes it safely and constructs SSML.
 
-Use a voice supported by the Speech resource's region. `SPEECH_RATE` is a
+The default voice is `en-US-Andrew:DragonHDLatestNeural` (Andrew HD). Prefer
+HD (`DragonHD`) voices for natural cadence; standard neural voices such as
+`en-US-JennyNeural` can sound robotic. Any HD or standard voice short name from
+the Speech resource's voice list works, provided the resource's region supports
+it. `SPEECH_RATE` is a
 percentage from `-50%` to `100%`. Azure synthesizes clips independently;
 do not assume cross-clip context or claim ElevenLabs-style neighboring-text
 support. Listen for consistency at clip boundaries if audio playback is
