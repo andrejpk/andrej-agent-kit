@@ -106,6 +106,11 @@ LANGUAGE = "en-US"
 SPEECH_RATE = "0%"
 ```
 
+Write narration the way a person would explain it out loud. Avoid LLM tics
+such as "it isn't X, it's Y" contrast framing, rhetorical
+"Here's the thing" setups, and triplet lists added for rhythm. State the
+point directly.
+
 Use one idea per sentence and two to five sentences per segment. Aim for
 8-25 seconds per clip. Spell out words and numbers that TTS might mangle:
 "one hundred dollars", "A P I", "idempotency key". Use plain narration text,
@@ -133,11 +138,14 @@ Narrated.narration = Narration.beside(__file__)
 ORDER = ["S1Problem"]
 
 class S1Problem(Narrated):
+    chapter = "The problem"
+
     def construct(self):
         self.say("intro")
-        title = T("One transfer, one posting", 40)
-        self.play(Write(title), run_time=1.5)
+        title = self.heading("One transfer, one posting")
+        self.play(self.type_in(title))
         self.until(0.5)
+        self.play(self.reveal(chip("Lost reply", C_BAD)))
         self.done()
         self.clear_all()
 ```
@@ -147,10 +155,56 @@ pads to its end. End one segment before starting the next. The kit warns
 when animation overruns narration. Use one scene per section; set `ORDER`
 to the exact rendering and joining order.
 
-Helpers include `T`, `M`, `box`, `chip`, `edge`, `flow`, `database`, `device`,
-`stat`, `lit`, and `heading`. A `box`'s first member is its outline and its
+`heading` returns a left-aligned title in the top-left corner. If the scene
+sets `chapter` (or you pass `chapter=`), an accent bar and uppercase chapter
+tag sit above it. Animate it with `self.play(self.type_in(title))`, which
+slides in the tag and types the title with a block cursor; avoid
+`Write(title)`, which gives the stroke-drawing look of stock Manim videos.
+Use `self.reveal(mob)` (a short fade-up) for callouts.
+
+### Timing and pacing
+
+Narration is plain text with no SSML, so create pauses with animation or
+`self.wait()` before calling `say()`. A short silent title or transition
+card before a section's first `say()` gives viewers time to switch context.
+Draw each visual before the narration refers to it; use `until(frac)` to
+bring in a callout just ahead of the words that mention it.
+
+After a build, `<external-workspace>/out/build-<resolution>.json` lists every
+segment's start time (relative to its scene) and length. Review frames with
+a contact sheet, for example:
+
+```powershell
+ffmpeg -i out.mp4 -vf "fps=1/5,scale=427:-1,tile=4x4" sheet%02d.png
+```
+
+Helpers include `T`, `M`, `L`, `box`, `chip`, `edge`, `flow`, `database`, `device`,
+`stat`, `lit`, `heading`, `type_in`, and `reveal`. `T` accepts `font=` to
+override the body `FONT`; `DISPLAY` is the heading font and `ACCENT` the
+heading accent color. Use `L` for single-line labels placed inside
+shapes: it reserves a fixed ascender-to-descender line box, so labels with
+and without descenders (g, y, p) share a height and baseline. Use `T` for
+free text and multi-line text. `box` and `chip` already use `L`. A `box`'s
+first member is its outline and its
 second is its label. Use `lit` to dim or restore it; `set_opacity(1)` would
 make a faint fill solid. Dash individual paths, not a whole `VGroup`.
+
+The default theme uses Inter and Manim's built-in colors, which work on any
+platform. For the brighter `vivid` theme, opt in right after the import and
+before building any mobjects:
+
+```python
+from explainer_kit import *
+use_theme("vivid")
+```
+
+This switches `FG`, `DIM`, `C1`-`C5` (light blue, teal, green, yellow,
+orange), `C_STORE`, `C_BAD`, `ACCENT` (teal), and the fonts to Windows 11
+system fonts (Segoe UI Variable, Cascadia Mono). It
+updates both the kit and the calling module, so names imported with `*`
+pick it up. The `VIVID_*` palette constants (purple, light purple, magenta,
+light magenta, orange, green, yellow, teal, deep teal, light blue, grey) are
+always available for extra accents.
 
 For the banking example, animate the request moving to the bank, show the
 balanced posting in a single atomic boundary, lose the response, then show
