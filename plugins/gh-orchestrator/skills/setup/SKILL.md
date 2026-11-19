@@ -14,8 +14,9 @@ Ask the person once, up front, with these defaults:
 
 - the repo (`gh repo view <repo> --json nameWithOwner -q .nameWithOwner`, for the exact casing GitHub uses in URLs);
 - issue threads: provider instance, model and effort (default: this thread's `instanceId`, read with `t3_thread_configure` and no `modelSelection`, `claude-opus-5-5`, effort `medium`). It goes into the prompts as `modelSelection` JSON;
-- lead threads, for initiatives: the same, with effort `high` by default, since a lead plans and reviews PRs against the whole initiative;
+- lead threads, for initiatives and hill climbs: the same, with effort `high` by default, since a lead plans and reviews PRs against the whole initiative;
 - the lead label that routes an issue to the lead skill (default `initiative`). If the org has an issue type for this (`gh api orgs/<owner>/issue-types`), its name works too, but only a label added later starts a run, so keep a label;
+- the climb label that routes an issue to the hill-climb lead (default `hill-climb-lead`);
 - a GitHub project board to check for related drafts, `owner/number` (default: none);
 - the daily sweep time (default `07:00`).
 
@@ -33,6 +34,7 @@ gh label create ready    -R <repo> --color 0E8A16 --description "Ready for the a
 gh label create question -R <repo> --color D876E3 --description "The agent is waiting on an answer"
 gh label create wip      -R <repo> --color FBCA04 --description "The agent is working on it"
 gh label create <lead-label> -R <repo> --color 5319E7 --description "Large work the agent leads: plan, sub-issues, a thread for each"
+gh label create <climb-label> -R <repo> --color 1D76DB --description "A number the agent climbs: baseline, experiments, keep what moves it"
 gh label create agent    -R <repo> --color BFDADC --description "The agent took this issue; kept for reports"
 ```
 

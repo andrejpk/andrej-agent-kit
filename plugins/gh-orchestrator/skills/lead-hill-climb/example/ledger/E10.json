@@ -1,0 +1,12 @@
+{
+  "id": "E10",
+  "title": "Self-host the tag manager",
+  "status": "backlog",
+  "priority": 2,
+  "area": "Third party",
+  "parts": [
+    "third",
+    "network"
+  ],
+  "hypothesis": "Saves a DNS lookup and TLS handshake to a third host."
+}

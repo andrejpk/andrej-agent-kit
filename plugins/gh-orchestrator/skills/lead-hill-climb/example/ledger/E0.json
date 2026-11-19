@@ -1,0 +1,39 @@
+{
+  "id": "E0",
+  "title": "Baseline: today's checkout",
+  "status": "kept",
+  "area": "Baseline",
+  "parts": [],
+  "hypothesis": "Measure the current build on the frozen dev pages before changing anything.",
+  "started": "2026-11-03",
+  "decided": "2026-11-03",
+  "by": "lead",
+  "commit": "4f1c2ab",
+  "results": {
+    "tti": {
+      "value": 2410,
+      "n": 180,
+      "ci": [
+        2350,
+        2470
+      ]
+    },
+    "js": {
+      "value": 512,
+      "n": 1
+    },
+    "done": {
+      "value": 96.2,
+      "n": 500,
+      "ci": [
+        94.4,
+        97.6
+      ]
+    }
+  },
+  "decision": "Baseline. Noise band for TTI is ±60 ms at 30 runs a page (R2).",
+  "reports": [
+    "R2"
+  ],
+  "log": "log/E0.md"
+}

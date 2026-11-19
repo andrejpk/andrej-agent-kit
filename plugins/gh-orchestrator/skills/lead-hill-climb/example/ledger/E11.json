@@ -1,0 +1,11 @@
+{
+  "id": "E11",
+  "title": "HTTP/3 for the checkout host",
+  "status": "backlog",
+  "priority": 3,
+  "area": "Network",
+  "parts": [
+    "network"
+  ],
+  "hypothesis": "Lossy 4G runs spend 100+ ms on retransmits."
+}

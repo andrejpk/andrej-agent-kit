@@ -14,8 +14,9 @@ The repository is also a Claude Code plugin marketplace with two plugins:
 
 - [`gh-orchestrator`](plugins/gh-orchestrator/README.md): hand GitHub issues to
   the agent in T3 Code. A broker starts a worktree thread for each issue
-  labelled `ready` or assigned to the agent, wakes it when people comment, and
-  leads large initiatives through sub-issues.
+  labelled `ready` or assigned to the agent, wakes it when people comment,
+  leads large initiatives through sub-issues, and leads hill climbs (a number
+  to move, labelled `hill-climb-lead`) through experiments.
 - [`pr-flow`](plugins/pr-flow/README.md): hand off a task and get back a
   ready-for-review PR (`land-the-plane`, `settle-pr`, a local reviewer agent,
   before/after PR screenshots). `gh-orchestrator` needs it.

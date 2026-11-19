@@ -1,6 +1,6 @@
 ---
 name: issue-intake
-description: Review a GitHub issue in its own T3 Code thread before building it - research the code and related work, post blocking questions with recommendations, propose leading it as an initiative when it's too big for one PR, or hand off to land-the-plane - and answer later comments on the issue. As a child of a lead thread, stop at a draft PR and report to the lead. Use when a thread's message says to use gh-orchestrator:issue-intake for an issue.
+description: Review a GitHub issue in its own T3 Code thread before building it - research the code and related work, post blocking questions with recommendations, propose leading it as an initiative when it's too big for one PR, or as a hill climb when the goal is a number to move and the way there is uncertain, or hand off to land-the-plane - and answer later comments on the issue. As a child of a lead thread, stop at a draft PR and report to the lead. Use when a thread's message says to use gh-orchestrator:issue-intake for an issue.
 ---
 
 # Issue intake
@@ -44,6 +44,8 @@ Everything you post on the issue ends with the provenance footer when the `prove
 
 3a. **Too big for one PR?** Unless you're a child of a lead, check whether this is really an initiative: several PRs that depend on each other, more than one repo, or a design that has to be settled first. If so, don't start. Post one comment: why (the pieces you see, the repos, what needs designing), a sketch of the breakdown, and the offer: "I can lead this as an initiative: agree success criteria with you, plan sub-issues, and run each in its own thread. Add the `<lead label>` label or reply yes to switch." The lead label is in the settings line of your messages (default `initiative`). Then end the turn. You never switch on your own.
 
+3b. **A number to move?** Unless you're a child of a lead, check whether this is really a hill climb: the goal is a metric to improve (latency, accuracy, cost, a score) and nobody knows which changes will get there, so it needs measuring, trying ideas and keeping only what moves the number. If so, don't start. Post one comment: the metric you'd climb and how it could be measured, what you'd try first, and the offer: "I can lead this as a hill climb: agree targets and how they're measured with you, take a baseline, then run experiments and report each result. Add the `<climb label>` label or reply yes to switch." The climb label is in the settings line (default `hill-climb-lead`). Then end the turn.
+
 4. **If blocked:** post one comment, relabel, and end the turn.
 
    ```bash
@@ -71,7 +73,7 @@ Everything you post on the issue ends with the provenance footer when the `prove
 
 The orchestrator sends this thread a message when someone comments on the issue after the agent's last comment, or adds `ready` back. Read every comment since your last one and answer on the issue with `gh issue comment`, @mentioning whoever you're answering, so the conversation stays on the issue. Then:
 
-- If a person agreed to lead it as an initiative (they replied yes, or the message says the lead label was added): add the lead label if it isn't there, switch this thread to the **Lead threads** settings from the message (`t3_thread_configure` with that `modelSelection`, no `threadId`; it applies from the next turn), rename this thread to mark it a lead: find its title with `t3_thread_list` (the entry matching `currentThreadId`), replace `🎫` with `🧭`, or put `🧭 ` before `#<n>` if there's no `🎫`, keep any `🛬 `, and rename with `t3_thread_update` (`action: "rename"`, no `threadId`), and continue with the `gh-orchestrator:lead-initiative` skill.
+- If a person agreed to lead it as an initiative or a hill climb (they replied yes, or the message says the lead or climb label was added): add that label if it isn't there, switch this thread to the **Lead threads** settings from the message (`t3_thread_configure` with that `modelSelection`, no `threadId`; it applies from the next turn), rename this thread to mark it a lead: find its title with `t3_thread_list` (the entry matching `currentThreadId`), replace `🎫` with `🧭` (`🧪` for a climb), or put it before `#<n>` if there's no `🎫`, keep any `🛬 `, and rename with `t3_thread_update` (`action: "rename"`, no `threadId`), and continue with the `gh-orchestrator:lead-initiative` skill (`gh-orchestrator:lead-hill-climb` for a climb).
 - If the blockers are answered, or `ready` is back, go to step 5.
 - If it's a question or follow-up about work that's already done (PR open or merged, issue closed), answer it. Reopen the work only if the comment asks for a change, and push it to the existing PR if that PR is still open.
 - Otherwise stop after replying.

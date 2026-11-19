@@ -1,0 +1,40 @@
+{
+  "id": "E6",
+  "title": "Islands: hydrate only the form",
+  "status": "rejected",
+  "area": "Hydration",
+  "parts": [
+    "hydrate",
+    "parse"
+  ],
+  "hypothesis": "Most of the page is static; hydrate the form and the cart only.",
+  "started": "2026-11-09",
+  "decided": "2026-11-11",
+  "by": "child, worktree",
+  "branch": "climb/42-checkout-tti/e6-islands",
+  "commit": "77fe013",
+  "results": {
+    "tti": {
+      "value": 1610,
+      "n": 180,
+      "ci": [
+        1570,
+        1655
+      ]
+    },
+    "js": {
+      "value": 330,
+      "n": 1
+    },
+    "done": {
+      "value": 93.8,
+      "n": 500,
+      "ci": [
+        91.4,
+        95.7
+      ]
+    }
+  },
+  "decision": "Rejected: TTI −230 ms, but completion fell to 93.8 %, under the 95 % floor: the address autocomplete no longer hydrates. Retried as E9.",
+  "log": "log/E6.md"
+}

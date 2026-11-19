@@ -11,6 +11,11 @@ worktree thread for it:
   the issue, it agrees success criteria and plans sub-issues across repos. It
   then runs each sub-issue in its own child thread, reviews the children's PRs
   against the plan, and keeps the plan current.
+- **A number to move** (labelled `hill-climb-lead`) gets a hill-climb lead.
+  With you on the issue, it agrees what to measure, with targets, floors and
+  noise bands, and takes an honest baseline. It then runs experiments in child
+  agents, keeps or rejects each with the number that decided it, and reports
+  through the issue and a dashboard.
 
 ```
 /plugin marketplace add andrejpk/andrej-agent-kit
@@ -40,6 +45,8 @@ flowchart LR
   B -- launch / wake --> I[intake thread]
   I --> LP[land-the-plane]
   B -- launch / wake --> LD[lead thread]
+  B -- launch / wake --> HC[hill-climb lead]
+  HC -- delegate --> E[experiment children]
   LD -- "labels sub-issues ready" --> GH
   B -- launch --> C[child intake threads]
   C -- t3_thread_send --> LD
@@ -47,8 +54,8 @@ flowchart LR
 
 - **Webhook tasks.** Four T3 webhook tasks, each behind its own GitHub hook,
   start a broker run only for:
-  - `ready` or the lead label added to an open issue, by a person or by a
-    lead starting a child;
+  - `ready`, the lead label or the climb label added to an open issue, by a
+    person or by a lead starting a child;
   - the agent assigned;
   - a person (not the agent, not a bot) commenting on an issue assigned to
     the agent;
@@ -71,6 +78,8 @@ flowchart LR
   several repos or a design to settle first, it proposes leading the issue as
   an initiative and waits. When a person agrees (by replying, or by adding
   the label), the same thread switches to `lead-initiative` and its 🎫 becomes 🧭.
+  If the goal is a number to move and the way there is uncertain, it proposes
+  a hill climb instead, and switches to `lead-hill-climb` (🧪) the same way.
 - **Lead thread** (`lead-initiative`, 🧭). Phases: understand, plan (approved
   before anything is created), create sub-issues with native sub-issue and
   blocked-by links, delegate, land, adjust. The lead starts a child by
@@ -81,10 +90,10 @@ flowchart LR
 - **Links.** The issue is assigned to the agent and carries a marker comment
   (`<!-- t3-thread: <threadId> -->`, newest wins) with a link to the thread
   (`https://app.t3.codes/<environment>/<thread>`, which opens for whoever can
-  reach that T3 environment). An initiative's parent issue body is its status
-  page: status and steps at the top (between `<!-- lead-status -->` markers),
-  the rest collapsed. Its settings and success criteria are a pinned comment
-  (`<!-- lead-plan -->`).
+  reach that T3 environment). An initiative's or climb's parent issue body is
+  its status page: status and steps at the top (between `<!-- lead-status -->`
+  markers), the rest collapsed. Its settings and success criteria are a pinned
+  comment (`<!-- lead-plan -->`).
 
 ### Lead and children talk directly
 
@@ -133,6 +142,76 @@ the agent or adding `ready` does, as for any issue. The label on its own
 starts a run only on an issue a thread already tracks, where it means "yes,
 lead this".
 
+A hill climb has its own label, `hill-climb-lead` (`<climb-label>`, the
+script's `--climb`). It names how the work is run, not what is climbed:
+a lead that climbs a number through experiments. A climb on its own, inside
+one task, needs no label.
+
+### Hill climbs
+
+A hill climb is for a goal measured by numbers, where nobody knows which
+changes will get there: latency, accuracy, cost, a score. The lead
+(`lead-hill-climb`, 🧪) works like this:
+
+1. It agrees each metric with you: how it's measured, a target, a floor and a
+   noise band. It also agrees guard metrics that must hold, fixed dev and
+   holdout splits, and stopping rules. A reviewer on a different model checks
+   the plan first.
+2. It measures a baseline (E0), with a chance or naive reference so a score
+   means something.
+3. It climbs:
+   - each experiment runs in a child agent on its own branch off the climb
+     branch, and writes its log as it goes;
+   - a different model reviews it;
+   - the lead keeps it, rejects it or parks it, with the number that decided
+     it;
+   - a kept experiment merges as `Merge E7: <outcome>`.
+
+Targets change only through a numbered revision you agree to.
+
+Experiments aren't sub-issues: the lead starts them with `delegate_task`.
+That's the one exception to "children start through GitHub labels", and it
+has reasons:
+
+- a climb runs dozens of mostly rejected experiments, and an issue each would
+  bury the real ones;
+- nobody comments on an experiment;
+- you steer through the plan (budget, how many at once, the ranked backlog)
+  rather than by starting runs one at a time.
+
+Children push their branches, so every idea, kept or not, can be opened on
+GitHub. Work that should ship on its own (outside the climb, a feature in its
+own right, another repo) is promoted to a sub-issue and starts like any child.
+
+Numbers live in one place: a ledger in the repo, on the climb branch
+(`climb.json` and one `ledger/E<n>.json` per experiment).
+`bin/climb-report.mjs` builds everything people read from it:
+
+- the issue's status section;
+- `LOG.md`;
+- a dashboard page with:
+  - a one-line verdict, then the scoreboard (now vs baseline vs target);
+  - a chart per metric over every experiment, with a one-line finding;
+  - a breakdown of the problem: a waterfall when the stages add up, with
+    each stage's baseline behind it; its parts filter the ideas;
+  - the ranked backlog;
+  - every idea tried, filterable, with its numbers and links to its branch,
+    commits and PR;
+  - revisions to the criteria, corrections to reported figures, and what
+    isn't measured yet;
+  - numbered reports that decisions cite as R1, R2.
+
+  Each number says whether it was measured, derived, simulated or assumed.
+  Bars and badges show which.
+
+The lead republishes the dashboard to the same private Artifact URL after
+each decision. [`skills/lead-hill-climb/example`](skills/lead-hill-climb/example)
+is a complete made-up climb.
+
+![The example climb's dashboard: the verdict, the section nav and the scoreboard, then the primary metric over every experiment, with its target, floor, noise band, a revision and the holdout score](skills/lead-hill-climb/docs/dashboard-overview.png)
+
+![The waterfall of time per stage, each stage's baseline behind it, derived and simulated stages hatched and dotted. Hydration is selected, so the ideas table shows the two ideas aimed at it: one rejected because a guard fell below its floor, one in the backlog](skills/lead-hill-climb/docs/dashboard-breakdown.png)
+
 ## Skills
 
 | Skill | Who runs it | How often |
@@ -140,6 +219,7 @@ lead this".
 | `orchestrate` | the broker | every webhook delivery that passes the filters, and the sweep |
 | `issue-intake` | each issue thread, and each child of a lead | once per issue, then once per new comment or lead message |
 | `lead-initiative` | a lead thread | for weeks; each wake reads the plan and what changed |
+| `lead-hill-climb` | a hill-climb lead | until the targets are met, a plateau or the budget; each wake reads the plan, the ledger and what changed |
 | `setup` | a person | once per repo; again to migrate or tear down |
 
 They're separate so the broker loads only the short mechanical part on every
@@ -161,6 +241,10 @@ JSON:
   body has a status section and who else last edited it, new commenters,
   and each sub-issue's state, child thread, open blockers, PRs, and whether
   it's queued or can start.
+
+`check`, `sweep` and `dashboard` take `--lead L` and `--climb C` for the two
+labels (defaults `initiative` and `hill-climb-lead`); `kind` is `issue`,
+`lead` or `climb`.
 - `plan-comment --repo O/R --issue N --body-file F`: creates and pins the
   plan comment, or edits it in place.
 - `body --repo O/R --issue N --body-file F [--whole]`: replaces only the
@@ -184,7 +268,15 @@ A tracked issue wakes when any of these happens:
 
 - a person comments after the agent's last comment;
 - `ready` is added back after the agent removed it;
-- the lead label is added after the agent's last comment.
+- the lead or climb label is added after the agent's last comment.
+
+`bin/climb-report.mjs` is the hill climb's ledger:
+
+- `check --dir D`: problems in `climb.json` and `ledger/*.json`, such as a
+  result without its `n` or a decision without its number.
+- `build --dir D`: writes `LOG.md`, `build/status.md` (for `gh-work.mjs
+  body`) and `build/index.html` (the dashboard). It prints the headline and
+  the report files to publish beside the page.
 
 Tests: `node --test plugins/gh-orchestrator/bin/*.test.mjs`.
 
@@ -199,6 +291,8 @@ what it's waiting on:
 
 - ⏳ **waiting on people**: questions asked, PRs ready for review;
 - 🧭 **initiatives**: phase and sub-issues done;
+- 🧪 **hill climbs**: phase and the headline (the primary metric now vs its
+  target);
 - 🚧 **in progress**, and 📥 **queued** (labelled `ready`, not started);
 - ✅ **closed in the last 7 days**, then the week's numbers.
 
@@ -224,7 +318,7 @@ Everything a report needs stays on GitHub:
 | --- | --- | --- |
 | Broker | Opus 5.5, low effort | the script decides; the broker follows a short table |
 | Intake and child threads | Opus 5.5, medium | research, then `land-the-plane` |
-| Lead threads | Opus 5.5, high | plans across repos, reviews each PR against the whole initiative |
+| Lead threads | Opus 5.5, high | plans across repos, reviews each PR against the whole initiative; leads hill climbs |
 
 `setup` puts the thread settings in the task prompts, and each launch passes
 them explicitly so a thread doesn't inherit its launcher's effort.

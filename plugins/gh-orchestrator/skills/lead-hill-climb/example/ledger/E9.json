@@ -1,0 +1,12 @@
+{
+  "id": "E9",
+  "title": "Islands, with the address autocomplete as an island",
+  "status": "backlog",
+  "priority": 1,
+  "area": "Hydration",
+  "parts": [
+    "hydrate",
+    "parse"
+  ],
+  "hypothesis": "E6's gain without breaking autocomplete: make it its own island."
+}

@@ -1,0 +1,25 @@
+{
+  "id": "E12",
+  "title": "Holdout check after E5",
+  "status": "kept",
+  "area": "Baseline",
+  "parts": [],
+  "hypothesis": "Score the frozen holdout pages once at this milestone.",
+  "started": "2026-11-08",
+  "decided": "2026-11-08",
+  "by": "lead",
+  "commit": "31dd0e4",
+  "results": {
+    "tti": {
+      "value": 1905,
+      "n": 120,
+      "ci": [
+        1850,
+        1965
+      ],
+      "split": "holdout"
+    }
+  },
+  "decision": "Holdout scored once: 1905 ms, 65 ms behind dev, as expected from heavier forms.",
+  "log": "log/E12.md"
+}
