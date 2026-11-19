@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "andrej-agent-kit",
+  "owner": {
+    "name": "Andrej Kyselica"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for handing GitHub issues and tasks to an agent",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "pr-flow",
+      "source": "./plugins/pr-flow",
+      "description": "Hand off a task and get back a ready-for-review PR: land-the-plane, settle-pr, a local reviewer agent, and before/after PR screenshots"
+    },
+    {
+      "name": "gh-orchestrator",
+      "source": "./plugins/gh-orchestrator",
+      "description": "Hand GitHub issues to the agent: a T3 Code broker starts a worktree thread per ready or assigned issue, wakes it when people comment, and leads large initiatives through sub-issues"
+    }
+  ]
+}

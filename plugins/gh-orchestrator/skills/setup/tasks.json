@@ -1,0 +1,226 @@
+{
+  "placeholders": {
+    "<repo>": "owner/name",
+    "<agent>": "the agent's GitHub login, from gh api user -q .login",
+    "<issue-threads>": "modelSelection JSON for issue threads, e.g. {\"instanceId\":\"claudeAgent\",\"model\":\"claude-opus-5-5\",\"options\":[{\"id\":\"effort\",\"value\":\"medium\"}]}",
+    "<lead-threads>": "modelSelection JSON for lead threads, e.g. {\"instanceId\":\"claudeAgent\",\"model\":\"claude-opus-5-5\",\"options\":[{\"id\":\"effort\",\"value\":\"high\"}]}",
+    "<lead-label>": "the label (or issue type) that routes an issue to the lead skill, default initiative",
+    "<board>": "owner/number of a GitHub project board, or none",
+    "<sweep-time>": "HH:MM, local time of the daily sweep",
+    "<secret>": "the webhook secret, the same for the T3 task and its GitHub hook"
+  },
+  "broker": {
+    "title": "🚦 GitHub orchestrator · <repo>",
+    "modelSelection": {
+      "model": "claude-opus-5-5",
+      "options": [
+        {
+          "id": "effort",
+          "value": "low"
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "title": "GitHub orchestrator: ready or lead label",
+      "githubEvents": [
+        "issues"
+      ],
+      "freshSession": true,
+      "prompt": "Use the gh-orchestrator:orchestrate skill. Repo: <repo>. Issue: #{{body.issue.number}}. Lead label: <lead-label>. Issue threads: <issue-threads>. Lead threads: <lead-threads>. Project board: <board>.",
+      "schedule": {
+        "type": "webhook",
+        "signature": {
+          "header": "x-hub-signature-256",
+          "encoding": "hex",
+          "prefix": "sha256=",
+          "secret": "<secret>"
+        },
+        "dedupe": {
+          "replayKey": "{{headers.x-github-delivery}}",
+          "coalesceKey": "{{body.issue.number}}"
+        },
+        "filters": [
+          {
+            "path": "headers.x-github-event",
+            "op": "equals",
+            "value": "issues"
+          },
+          {
+            "path": "body.action",
+            "op": "equals",
+            "value": "labeled"
+          },
+          {
+            "path": "body.label.name",
+            "op": "in",
+            "value": [
+              "ready",
+              "<lead-label>"
+            ]
+          },
+          {
+            "path": "body.issue.state",
+            "op": "equals",
+            "value": "open"
+          }
+        ]
+      }
+    },
+    {
+      "title": "GitHub orchestrator: assigned to the agent",
+      "githubEvents": [
+        "issues"
+      ],
+      "freshSession": true,
+      "prompt": "Use the gh-orchestrator:orchestrate skill. Repo: <repo>. Issue: #{{body.issue.number}}. Lead label: <lead-label>. Issue threads: <issue-threads>. Lead threads: <lead-threads>. Project board: <board>.",
+      "schedule": {
+        "type": "webhook",
+        "signature": {
+          "header": "x-hub-signature-256",
+          "encoding": "hex",
+          "prefix": "sha256=",
+          "secret": "<secret>"
+        },
+        "dedupe": {
+          "replayKey": "{{headers.x-github-delivery}}",
+          "coalesceKey": "{{body.issue.number}}"
+        },
+        "filters": [
+          {
+            "path": "headers.x-github-event",
+            "op": "equals",
+            "value": "issues"
+          },
+          {
+            "path": "body.action",
+            "op": "equals",
+            "value": "assigned"
+          },
+          {
+            "path": "body.assignee.login",
+            "op": "equals",
+            "value": "<agent>"
+          },
+          {
+            "path": "body.issue.state",
+            "op": "equals",
+            "value": "open"
+          },
+          {
+            "path": "body.sender.login",
+            "op": "notEquals",
+            "value": "<agent>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "GitHub orchestrator: comment on an agent issue",
+      "githubEvents": [
+        "issue_comment"
+      ],
+      "freshSession": true,
+      "prompt": "Use the gh-orchestrator:orchestrate skill. Repo: <repo>. Issue: #{{body.issue.number}}. Lead label: <lead-label>. Issue threads: <issue-threads>. Lead threads: <lead-threads>. Project board: <board>.",
+      "schedule": {
+        "type": "webhook",
+        "signature": {
+          "header": "x-hub-signature-256",
+          "encoding": "hex",
+          "prefix": "sha256=",
+          "secret": "<secret>"
+        },
+        "dedupe": {
+          "replayKey": "{{headers.x-github-delivery}}",
+          "coalesceKey": "{{body.issue.number}}"
+        },
+        "filters": [
+          {
+            "path": "headers.x-github-event",
+            "op": "equals",
+            "value": "issue_comment"
+          },
+          {
+            "path": "body.action",
+            "op": "equals",
+            "value": "created"
+          },
+          {
+            "path": "body.issue.html_url",
+            "op": "startsWith",
+            "value": "https://github.com/<repo>/issues/"
+          },
+          {
+            "path": "body.issue.assignees[].login",
+            "op": "equals",
+            "value": "<agent>"
+          },
+          {
+            "path": "body.sender.login",
+            "op": "notEquals",
+            "value": "<agent>"
+          },
+          {
+            "path": "body.sender.type",
+            "op": "notEquals",
+            "value": "Bot"
+          }
+        ]
+      }
+    },
+    {
+      "title": "GitHub orchestrator: agent issue closed",
+      "githubEvents": [
+        "issues"
+      ],
+      "freshSession": true,
+      "prompt": "Use the gh-orchestrator:orchestrate skill. Repo: <repo>. Closed issue: #{{body.issue.number}}. Lead label: <lead-label>. Issue threads: <issue-threads>. Lead threads: <lead-threads>. Project board: <board>.",
+      "schedule": {
+        "type": "webhook",
+        "signature": {
+          "header": "x-hub-signature-256",
+          "encoding": "hex",
+          "prefix": "sha256=",
+          "secret": "<secret>"
+        },
+        "dedupe": {
+          "replayKey": "{{headers.x-github-delivery}}",
+          "coalesceKey": "{{body.issue.number}}"
+        },
+        "filters": [
+          {
+            "path": "headers.x-github-event",
+            "op": "equals",
+            "value": "issues"
+          },
+          {
+            "path": "body.action",
+            "op": "equals",
+            "value": "closed"
+          },
+          {
+            "path": "body.issue.assignees[].login",
+            "op": "equals",
+            "value": "<agent>"
+          },
+          {
+            "path": "body.sender.login",
+            "op": "notEquals",
+            "value": "<agent>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "GitHub orchestrator: daily sweep",
+      "githubEvents": [],
+      "freshSession": true,
+      "prompt": "Use the gh-orchestrator:orchestrate skill. Repo: <repo>. Sweep. Lead label: <lead-label>. Issue threads: <issue-threads>. Lead threads: <lead-threads>. Project board: <board>.",
+      "schedule": {
+        "type": "fixed_time",
+        "timeOfDay": "<sweep-time>"
+      }
+    }
+  ]
+}

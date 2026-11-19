@@ -1,0 +1,9 @@
+{
+  "name": "pr-flow",
+  "version": "0.1.0",
+  "description": "Hand off a task and get back a ready-for-review PR: land-the-plane, settle-pr, a local reviewer agent, and before/after PR screenshots",
+  "author": {
+    "name": "Andrej Kyselica"
+  },
+  "repository": "https://github.com/andrejpk/andrej-agent-kit"
+}
