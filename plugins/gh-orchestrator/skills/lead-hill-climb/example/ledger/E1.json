@@ -1,0 +1,37 @@
+{
+  "id": "E1",
+  "title": "Code-split the payment widget",
+  "status": "kept",
+  "area": "Bundle",
+  "parts": [
+    "download",
+    "parse"
+  ],
+  "hypothesis": "The payment widget is 110 KB and only needed after the address step.",
+  "started": "2026-11-03",
+  "decided": "2026-11-04",
+  "by": "child, worktree",
+  "branch": "climb/42-checkout-tti/e1-split-payment",
+  "commit": "9ad01e3",
+  "merge": "b71e004",
+  "results": {
+    "tti": {
+      "value": 2130,
+      "n": 180,
+      "ci": [
+        2080,
+        2190
+      ]
+    },
+    "js": {
+      "value": 401,
+      "n": 1
+    },
+    "done": {
+      "value": 96.4,
+      "n": 500
+    }
+  },
+  "decision": "Kept: TTI −280 ms, well past the 60 ms band; JS −111 KB; completion unchanged.",
+  "log": "log/E1.md"
+}

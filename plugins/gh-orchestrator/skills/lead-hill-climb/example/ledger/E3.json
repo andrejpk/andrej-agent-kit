@@ -1,0 +1,35 @@
+{
+  "id": "E3",
+  "title": "Stream the server render",
+  "status": "kept",
+  "area": "Server",
+  "parts": [
+    "server"
+  ],
+  "hypothesis": "The page waits for the cart and the shipping quote before sending a byte; stream the shell first.",
+  "started": "2026-11-05",
+  "decided": "2026-11-06",
+  "by": "child, worktree",
+  "branch": "climb/42-checkout-tti/e3-streaming",
+  "commit": "e8b4d22",
+  "merge": "7c90aa5",
+  "results": {
+    "tti": {
+      "value": 1890,
+      "n": 180,
+      "ci": [
+        1845,
+        1940
+      ]
+    },
+    "done": {
+      "value": 96.0,
+      "n": 500
+    }
+  },
+  "decision": "Kept: TTI −160 ms; the waterfall is in R1. Two review rounds found a leaked DB connection on aborted streams, fixed with a regression test.",
+  "reports": [
+    "R1"
+  ],
+  "log": "log/E3.md"
+}

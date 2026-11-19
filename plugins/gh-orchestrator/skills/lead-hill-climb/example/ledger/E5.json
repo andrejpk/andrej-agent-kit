@@ -1,0 +1,32 @@
+{
+  "id": "E5",
+  "title": "Defer analytics until idle",
+  "status": "kept",
+  "area": "Third party",
+  "parts": [
+    "third"
+  ],
+  "hypothesis": "Three analytics tags run before the form is usable.",
+  "started": "2026-11-07",
+  "decided": "2026-11-08",
+  "by": "child, worktree",
+  "branch": "climb/42-checkout-tti/e5-defer-tags",
+  "commit": "a0c6b98",
+  "merge": "31dd0e4",
+  "results": {
+    "tti": {
+      "value": 1840,
+      "n": 180,
+      "ci": [
+        1795,
+        1888
+      ]
+    },
+    "done": {
+      "value": 96.1,
+      "n": 500
+    }
+  },
+  "decision": "Kept: TTI −50 ms (within the band alone, but every run moved the same way, sign test p < 0.01) and the tags still fire.",
+  "log": "log/E5.md"
+}

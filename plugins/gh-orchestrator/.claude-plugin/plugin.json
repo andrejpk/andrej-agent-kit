@@ -1,7 +1,7 @@
 {
   "name": "gh-orchestrator",
-  "description": "Hand GitHub issues to the agent: a T3 Code broker starts a worktree thread for each issue labelled ready or assigned to the agent, wakes it when people comment, and leads large initiatives through sub-issues",
-  "version": "0.1.4",
+  "description": "Hand GitHub issues to the agent: a T3 Code broker starts a worktree thread for each issue labelled ready or assigned to the agent, wakes it when people comment, leads large initiatives through sub-issues, and leads hill climbs through experiments",
+  "version": "0.2.0",
   "author": {
     "name": "Andrej Kyselica"
   },

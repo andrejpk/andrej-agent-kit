@@ -1,0 +1,15 @@
+{
+  "id": "E8",
+  "title": "Cache the logged-out shell at the edge",
+  "status": "running",
+  "area": "Server",
+  "parts": [
+    "server",
+    "network"
+  ],
+  "hypothesis": "The shell is the same for everyone; serve it from the edge and fetch the cart after.",
+  "started": "2026-11-18",
+  "by": "child, worktree",
+  "branch": "climb/42-checkout-tti/e8-edge-shell",
+  "log": "log/E8.md"
+}

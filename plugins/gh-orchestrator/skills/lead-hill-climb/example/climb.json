@@ -1,0 +1,286 @@
+{
+  "schema": "hill-climb/1",
+  "title": "Checkout time to interactive",
+  "summary": "Make the checkout page usable sooner on a mid-range phone over 4G, without losing completed checkouts. (Example data.)",
+  "verdict": "About a fifth of the way short: 1,840 ms against 1,500 on the mid-range phone, and parse and hydration on the low-end phone are now the biggest stages.",
+  "repo": "example/shop",
+  "issue": 42,
+  "branch": "climb/42-checkout-tti",
+  "path": "experiments/42-checkout-tti",
+  "phase": "climbing",
+  "metrics": [
+    {
+      "id": "tti",
+      "name": "Time to interactive, p75",
+      "short": "TTI p75",
+      "unit": "ms",
+      "better": "lower",
+      "target": 1500,
+      "floor": 2000,
+      "noise": 60,
+      "role": "primary",
+      "split": "dev",
+      "how": "Lab runner, mid-range phone profile on 4G, 30 runs on each of the 6 dev pages; p75 of all runs. CI by bootstrap.",
+      "finding": "Down 570 ms from the baseline, 340 ms still to go; the last three kept changes each gave 50–160 ms."
+    },
+    {
+      "id": "js",
+      "name": "JavaScript shipped",
+      "short": "JS shipped",
+      "unit": "KB",
+      "better": "lower",
+      "target": 250,
+      "floor": 350,
+      "noise": 2,
+      "role": "secondary",
+      "split": "dev",
+      "how": "Compressed JS on the checkout route, from the build's stats file.",
+      "finding": "Code-splitting took the big cut; the date library (E7) is parked until JS is the limit."
+    },
+    {
+      "id": "done",
+      "name": "Checkout completed in replays",
+      "short": "Completed",
+      "unit": "%",
+      "better": "higher",
+      "target": 96,
+      "floor": 95,
+      "noise": 0.8,
+      "role": "guard",
+      "split": "dev",
+      "how": "500 recorded checkout sessions replayed against the build; share that reach the receipt.",
+      "basis": "simulated",
+      "against": "500 recorded sessions replayed against the build, not live traffic",
+      "finding": "Holding at 96 % except E6, which broke address autocomplete."
+    }
+  ],
+  "splits": [
+    {
+      "id": "dev",
+      "use": "tune on it",
+      "what": "6 checkout pages, 30 runs each"
+    },
+    {
+      "id": "holdout",
+      "use": "score once per milestone",
+      "what": "4 other checkout pages (other countries' forms), never tuned on"
+    }
+  ],
+  "baselines": [
+    {
+      "label": "Static HTML, no JS (lower bound)",
+      "values": {
+        "tti": 910
+      }
+    }
+  ],
+  "breakdowns": [
+    {
+      "id": "tti-budget",
+      "title": "Where the time goes",
+      "kind": "stack",
+      "metric": "tti",
+      "unit": "ms",
+      "target": 1500,
+      "finding": "Server render and JS download shrank most; on the low-end phone, parse and hydration now cost 1,150 ms of 2,680.",
+      "note": "p75 per stage from the lab runner's traces, on the current build (E5). The ghost is each stage at the baseline (E0).",
+      "variants": [
+        {
+          "id": "mid",
+          "label": "Mid-range phone"
+        },
+        {
+          "id": "low",
+          "label": "Low-end phone"
+        }
+      ],
+      "parts": [
+        {
+          "id": "network",
+          "label": "DNS, TLS, first byte",
+          "group": "Network",
+          "basis": "measured",
+          "value": {
+            "mid": 180,
+            "low": 200
+          },
+          "baseline": {
+            "mid": 190,
+            "low": 210
+          }
+        },
+        {
+          "id": "server",
+          "label": "Server render",
+          "group": "Server",
+          "basis": "measured",
+          "value": {
+            "mid": 420,
+            "low": 430
+          },
+          "baseline": {
+            "mid": 610,
+            "low": 620
+          },
+          "from": "E3"
+        },
+        {
+          "id": "download",
+          "label": "JS download",
+          "group": "Network",
+          "basis": "derived",
+          "against": "transfer size ÷ the 4G profile's throughput",
+          "value": {
+            "mid": 380,
+            "low": 520
+          },
+          "baseline": {
+            "mid": 560,
+            "low": 760
+          }
+        },
+        {
+          "id": "parse",
+          "label": "Parse and compile",
+          "group": "Browser",
+          "basis": "measured",
+          "value": {
+            "mid": 310,
+            "low": 610
+          },
+          "baseline": {
+            "mid": 400,
+            "low": 800
+          }
+        },
+        {
+          "id": "hydrate",
+          "label": "Hydration",
+          "group": "Browser",
+          "basis": "measured",
+          "value": {
+            "mid": 290,
+            "low": 540
+          },
+          "baseline": {
+            "mid": 300,
+            "low": 560
+          }
+        },
+        {
+          "id": "third",
+          "label": "Third-party tags",
+          "group": "Third party",
+          "basis": "simulated",
+          "against": "tags replayed from a recorded session",
+          "value": {
+            "mid": 260,
+            "low": 380
+          },
+          "range": {
+            "mid": [
+              230,
+              290
+            ],
+            "low": [
+              340,
+              430
+            ]
+          },
+          "baseline": {
+            "mid": 350,
+            "low": 470
+          }
+        }
+      ]
+    }
+  ],
+  "revisions": [
+    {
+      "rev": 2,
+      "date": "2026-11-05",
+      "metrics": [
+        "tti"
+      ],
+      "what": "TTI is scored at p75 of all runs, not the median.",
+      "why": "The median hid the slow third of runs, where most abandoned checkouts are. Old and new numbers for E0–E3 are in R2.",
+      "who": "@owner",
+      "link": null
+    }
+  ],
+  "reports": [
+    {
+      "id": "R1",
+      "title": "Server render waterfall, before and after streaming",
+      "date": "2026-11-06",
+      "experiment": "E3",
+      "file": "reports/R1-streaming.html"
+    },
+    {
+      "id": "R2",
+      "title": "Lab variance: why 30 runs and a 60 ms noise band",
+      "date": "2026-11-03",
+      "experiment": "E0",
+      "file": "reports/R2-variance.html"
+    }
+  ],
+  "waiting": [
+    {
+      "who": "@owner",
+      "what": "OK to try the edge cache (E8 needs a CDN plan change)",
+      "link": null
+    }
+  ],
+  "human": [
+    {
+      "what": "Upgrade the CDN plan so edge caching can be tested",
+      "status": "open"
+    }
+  ],
+  "resources": [
+    {
+      "name": "perf lab runner",
+      "holder": "E8",
+      "since": "2026-11-19 09:40"
+    }
+  ],
+  "budget": {
+    "experiments": 25,
+    "until": "2026-12-05",
+    "plateau": 3
+  },
+  "corrections": [
+    {
+      "date": "2026-11-04",
+      "what": "E0 JavaScript shipped",
+      "old": "498 KB",
+      "new": "512 KB",
+      "why": "The first count left out the lazy-loaded address chunk, which the checkout route always loads.",
+      "where": "log/E0.md"
+    },
+    {
+      "date": "2026-11-07",
+      "what": "E3 TTI p75",
+      "old": "1,850 ms",
+      "new": "1,890 ms",
+      "why": "The first run hit a warm CDN cache; the eval runs cold, so it was run again.",
+      "where": "log/E3.md"
+    }
+  ],
+  "unmeasured": [
+    {
+      "what": "TTI p95 on the low-end phone",
+      "metrics": [
+        "tti"
+      ],
+      "waiting": "a second lab device"
+    },
+    {
+      "what": "Checkout completion on live traffic",
+      "metrics": [
+        "done"
+      ],
+      "waiting": "an A/B slot after the CDN change"
+    }
+  ]
+}

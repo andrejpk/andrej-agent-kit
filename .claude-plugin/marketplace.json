@@ -17,7 +17,7 @@
     {
       "name": "gh-orchestrator",
       "source": "./plugins/gh-orchestrator",
-      "description": "Hand GitHub issues to the agent: a T3 Code broker starts a worktree thread per ready or assigned issue, wakes it when people comment, and leads large initiatives through sub-issues"
+      "description": "Hand GitHub issues to the agent: a T3 Code broker starts a worktree thread per ready or assigned issue, wakes it when people comment, leads large initiatives through sub-issues, and leads hill climbs through experiments"
     }
   ]
 }

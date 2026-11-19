@@ -1,0 +1,32 @@
+{
+  "id": "E2",
+  "title": "Brotli at the edge",
+  "status": "kept",
+  "area": "Network",
+  "parts": [
+    "download"
+  ],
+  "hypothesis": "The CDN serves gzip; Brotli should cut transfer by ~15 %.",
+  "started": "2026-11-04",
+  "decided": "2026-11-04",
+  "by": "child, worktree",
+  "branch": "climb/42-checkout-tti/e2-brotli",
+  "commit": "c3e9a10",
+  "merge": "0d2f7c1",
+  "results": {
+    "tti": {
+      "value": 2050,
+      "n": 180,
+      "ci": [
+        2000,
+        2105
+      ]
+    },
+    "done": {
+      "value": 96.3,
+      "n": 500
+    }
+  },
+  "decision": "Kept: TTI −80 ms, just past the band; transfer −17 %.",
+  "log": "log/E2.md"
+}

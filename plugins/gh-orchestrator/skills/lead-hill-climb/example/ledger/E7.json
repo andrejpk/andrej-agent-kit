@@ -1,0 +1,28 @@
+{
+  "id": "E7",
+  "title": "Replace the date library",
+  "status": "parked",
+  "area": "Bundle",
+  "parts": [
+    "download",
+    "parse"
+  ],
+  "hypothesis": "The date library is 30 KB for one format call.",
+  "started": "2026-11-11",
+  "decided": "2026-11-12",
+  "by": "child, worktree",
+  "branch": "climb/42-checkout-tti/e7-dates",
+  "commit": "2be8c41",
+  "results": {
+    "tti": {
+      "value": 1828,
+      "n": 180
+    },
+    "js": {
+      "value": 371,
+      "n": 1
+    }
+  },
+  "decision": "Parked: JS −30 KB but TTI −12 ms, inside the band. Worth it once JS becomes the limit.",
+  "log": "log/E7.md"
+}

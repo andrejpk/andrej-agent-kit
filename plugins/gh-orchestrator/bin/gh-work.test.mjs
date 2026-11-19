@@ -153,6 +153,27 @@ test('the agent adding the lead label itself does not wake its thread', () => {
   assert.equal(result.action, 'none')
 })
 
+test('the climb label or issue type routes an issue to the climb skill, ahead of the lead label', () => {
+  assert.equal(kindOf(issue({ labels: labels('hill-climb-lead') })), 'climb')
+  assert.equal(kindOf(issue({ issueType: { name: 'Hill-Climb-Lead' } })), 'climb')
+  assert.equal(kindOf(issue({ labels: labels('tune') }), 'initiative', 'tune'), 'climb')
+  assert.equal(kindOf(issue({ labels: labels('initiative', 'hill-climb-lead') })), 'climb')
+  assert.equal(decide(issue({ labels: labels('ready', 'hill-climb-lead') }), AGENT).kind, 'climb')
+})
+
+test('adding the climb label to a tracked issue wakes its thread to switch, and the lead label does not', () => {
+  const added = name => decide(issue({
+    labels: labels(name),
+    assignees: assignees(AGENT),
+    comments: { nodes: [marker('t1'), comment(AGENT, '2026-11-02T00:00:00Z', 'Add hill-climb-lead to switch.')] },
+    timelineItems: { nodes: [{ __typename: 'LabeledEvent', createdAt: '2026-11-03T00:00:00Z', label: { name: 'hill-climb-lead' }, actor: { login: 'alice' } }] }
+  }), AGENT)
+  const result = added('hill-climb-lead')
+  assert.deepEqual({ action: result.action, kind: result.kind, leadAdded: result.leadAdded }, { action: 'wake', kind: 'climb', leadAdded: true })
+  // The event names the climb label, but the issue is labelled for the lead: no wake for a label it doesn't carry.
+  assert.equal(added('initiative').action, 'none')
+})
+
 test('the marker is found among the earliest comments of a long thread', () => {
   const early = { nodes: [marker('t1')] }
   const latest = { nodes: Array.from({ length: 3 }, (_, i) => comment('alice', `2026-11-1${i}T00:00:00Z`)) }
@@ -224,6 +245,14 @@ test('an initiative shows its phase and sub-issue progress', () => {
   const plan = comment(AGENT, '2026-11-02T00:00:00Z', '<!-- lead-plan -->\n**Phase:** delivering')
   const issue = agentIssue(5, { labels: labels('agent', 'initiative'), subIssuesSummary: { total: 6, completed: 2 }, earliest: { nodes: [marker('t5'), plan] } })
   assert.deepEqual(issueStatus(issue, AGENT, 'initiative', NOW, link), { group: 'initiative', notes: ['delivering', '2/6 sub-issues', '[thread](https://t3/t5)', '4h ago'] })
+})
+
+test('a hill climb shows its phase and headline in its own group', () => {
+  const plan = comment(AGENT, '2026-11-02T00:00:00Z', '<!-- lead-plan -->\n**Phase:** climbing\n**Headline:** recall 0.81 → target 0.85 (E14)\n**Base:** `climb/42-recall`')
+  const issue = agentIssue(6, { labels: labels('agent', 'hill-climb-lead'), earliest: { nodes: [marker('t6'), plan] } })
+  assert.deepEqual(issueStatus(issue, AGENT, 'initiative', NOW, link), { group: 'climb', notes: ['climbing', 'recall 0.81 → target 0.85 (E14)', '[thread](https://t3/t6)', '4h ago'] })
+  const body = renderDashboard({ open: { nodes: [issue] }, closed: { nodes: [] }, queued: { nodes: [] } }, { agent: AGENT, now: NOW, linkFor: link })
+  assert.match(body, /### 🧪 Hill climbs\n- \[ \] #6 Issue 6 · climbing · recall 0\.81 → target 0\.85 \(E14\)/)
 })
 
 test('the week counts only agent issues and the PRs that close them', () => {
