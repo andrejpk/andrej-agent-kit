@@ -8,6 +8,24 @@ The included banking example explains **idempotent bank transfers**: a request
 is retried after a timeout, but an atomic ledger transaction moves the money
 only once. It uses fictional accounts and amounts, not customer data.
 
+## Claude Code plugins
+
+The repository is also a Claude Code plugin marketplace with two plugins:
+
+- [`gh-orchestrator`](plugins/gh-orchestrator/README.md): hand GitHub issues to
+  the agent in T3 Code. A broker starts a worktree thread for each issue
+  labelled `ready` or assigned to the agent, wakes it when people comment, and
+  leads large initiatives through sub-issues.
+- [`pr-flow`](plugins/pr-flow/README.md): hand off a task and get back a
+  ready-for-review PR (`land-the-plane`, `settle-pr`, a local reviewer agent,
+  before/after PR screenshots). `gh-orchestrator` needs it.
+
+```
+/plugin marketplace add andrejpk/andrej-agent-kit
+/plugin install pr-flow@andrej-agent-kit
+/plugin install gh-orchestrator@andrej-agent-kit
+```
+
 ## Use with GitHub Copilot
 
 Open this repository in a Copilot-enabled editor, the Copilot app, or Copilot
