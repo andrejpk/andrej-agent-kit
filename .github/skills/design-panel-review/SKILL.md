@@ -211,8 +211,8 @@ Judges: Opus, Sol, Gemini; fresh each round; three viewports from a `#demo` fixt
 | Round | Panel avg | Notable change |
 | --- | --- | --- |
 | 0 | 5.43 | Baseline (the run first recorded 5.47 from Opus's self-reported 5.3; its criteria give 5.2) |
-| 1 | 7.57 | Flight deck (stage ribbon, WIP gauges), running-now agent chips, activity chart and feed |
-| 2 | 7.70 | Cumulative flow diagram, agents/waiting-on-you split, clearer PR merge gates |
+| 1 | 7.52 | Flight deck (stage ribbon, WIP gauges), running-now agent chips, activity chart and feed |
+| 2 | 7.67 | Cumulative flow diagram, agents/waiting-on-you split, clearer PR merge gates |
 | 3 | 8.17 | Flow chart anchored to live board counts (a consensus bug), gate filters, compact triage |
 
 Round 3: Opus 7.8, Sol 8.0, Gemini 8.7. Gemini scored highest every round; Sol and Opus were

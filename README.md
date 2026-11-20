@@ -71,6 +71,8 @@ scores and reloads itself so you can watch the climb live.
 Needs Node 18+ for `scripts/build-report.mjs` and PowerShell plus Edge or
 Chrome for `scripts/shoot.ps1`. Install it in another repository or personally
 by copying the whole folder into `.github/skills` or `$HOME\.copilot\skills`.
+See [how it works](.github/skills/design-panel-review/README.md) for the method,
+the report, and an example run.
 
 ## Use the explainer skill with GitHub Copilot
 
