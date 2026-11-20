@@ -1,0 +1,56 @@
+{
+  "title": "Example dashboard · UI hill-climb report",
+  "judges": [
+    { "id": "opus", "name": "Claude Opus 5.5", "model": "claude-opus-5.5" },
+    { "id": "sol", "name": "GPT-6.2 Sol", "model": "gpt-6.2-sol" },
+    { "id": "gemini", "name": "Gemini 4 Argon", "model": "gemini-4-argon" }
+  ],
+  "criteria": [
+    ["C1", "In-flight visibility", 15],
+    ["C2", "Flow and movement", 15],
+    ["C3", "Rich graphics and interactivity", 15],
+    ["C4", "Domain familiarity", 10],
+    ["C5", "Actionability", 10],
+    ["C6", "Hierarchy and visual design", 10],
+    ["C7", "State, feedback and trust", 10],
+    ["C8", "Accessibility and responsiveness", 5],
+    ["C9", "Scalability", 5],
+    ["C10", "Constraint fit", 5]
+  ],
+  "shots": [
+    { "id": "desktop-fold", "label": "Desktop fold" },
+    { "id": "desktop-full", "label": "Full page" },
+    { "id": "narrow", "label": "Narrow 820px" }
+  ],
+  "rounds": [
+    {
+      "round": 0,
+      "title": "Baseline",
+      "commit": "a1b2c3d",
+      "changes": [],
+      "scores": {
+        "opus": { "c": [5, 4, 5, 7, 6, 6, 6, 5, 4, 8], "overall": 5.5 },
+        "sol": { "c": [5, 4, 4, 7, 5, 5, 6, 5, 4, 8], "overall": 5.1 },
+        "gemini": { "c": [6, 5, 5, 7, 6, 6, 6, 5, 5, 8], "overall": 5.8 }
+      },
+      "feedback": [
+        "All 3: add a live 'running now' strip above the fold showing each active agent and its elapsed time",
+        "Opus + Sol: the throughput chart disagrees with the board counts; anchor it to live state",
+        "Keep: kanban columns and PR check badges"
+      ]
+    },
+    {
+      "round": 1,
+      "title": "Running-now strip, anchored chart",
+      "commit": "d4e5f6a",
+      "changes": [
+        "Added a 'running now' strip with agent avatars and live elapsed timers",
+        "Throughput chart now reads from the same snapshot as the board"
+      ],
+      "scores": {
+        "opus": { "c": [8, 7, 7, 8, 7, 7, 7, 6, 6, 8], "overall": 7.2 }
+      },
+      "feedback": []
+    }
+  ]
+}

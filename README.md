@@ -53,6 +53,25 @@ in Copilot invokes them. The T3-specific steps in `pr-flow` (`watch_pull_request
 thread renaming) are conditional and are skipped in Copilot, where `settle-pr`
 polls with `gh` instead.
 
+## Design panel review skill
+
+`.github/skills/design-panel-review` hill-climbs a UI/UX design with a panel of
+AI judges from different model families (by default Claude Opus, GPT Sol and
+Gemini). It writes a weighted 1-10 rubric from your goals, screenshots each
+generation with headless Edge/Chrome, sends fresh read-only reviewer
+sub-agents every round, implements their consensus feedback, and repeats
+(round 0 is the current design, then three rounds of edits). A single
+self-contained `report.html` shows every generation's screenshots and per-judge
+scores and reloads itself so you can watch the climb live.
+
+> Use the design-panel-review skill: do three rounds of panel reviews on this
+> dashboard. Goals: see everything in flight, show what is moving through the
+> system, rich and interactive, familiar engineering idioms.
+
+Needs Node 18+ for `scripts/build-report.mjs` and PowerShell plus Edge or
+Chrome for `scripts/shoot.ps1`. Install it in another repository or personally
+by copying the whole folder into `.github/skills` or `$HOME\.copilot\skills`.
+
 ## Use the explainer skill with GitHub Copilot
 
 Open this repository in a Copilot-enabled editor, the Copilot app, or Copilot
