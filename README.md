@@ -1,12 +1,60 @@
 # andrejky-agent-kit
 
-A GitHub Copilot skill package for making narrated, animated explainer videos
-with **Manim** and **Azure AI Speech**. No Claude plugin runtime or ElevenLabs
-account is needed.
+A GitHub Copilot agent-skill package for pull request delivery, GitHub issue
+orchestration, and narrated animated explainer videos. It also preserves the
+source Claude Code plugin marketplace for `pr-flow` and `gh-orchestrator`.
+No Claude plugin runtime is required to use the Copilot skills.
 
 The included banking example explains **idempotent bank transfers**: a request
 is retried after a timeout, but an atomic ledger transaction moves the money
 only once. It uses fictional accounts and amounts, not customer data.
+
+## GitHub Copilot package
+
+This repository exposes three project skills under `.github/skills`:
+
+| Skill | What Copilot can do |
+| --- | --- |
+| [`explainer-video`](.github/skills/explainer-video) | Build narrated Manim videos with Azure AI Speech |
+| [`pr-flow`](.github/skills/pr-flow) | Build and review a change, open a PR, settle checks and comments, and mark it ready |
+| [`gh-orchestrator`](.github/skills/gh-orchestrator) | Intake issues, lead approved initiatives, and run measurement-driven hill climbs on demand |
+
+The `pr-flow` package also exposes
+[`pr-flow-reviewer`](.github/agents/pr-flow-reviewer.agent.md), a repository
+custom agent for an independent read-only review.
+
+When this repository is open in a Copilot-enabled editor, app, or Copilot CLI,
+the project skills are discovered automatically. Try:
+
+> Use the pr-flow skill to take this task to a ready-for-review pull request.
+
+> Use gh-orchestrator to intake this issue, and ask before creating a
+> multi-repository initiative.
+
+For another repository, copy the desired folders from `.github/skills` into
+that repository's `.github/skills`. Copy whole skill folders: supporting files
+and scripts are part of the package. To install `pr-flow` and
+`gh-orchestrator` personally for Copilot CLI, copy those folders into
+`$HOME\.copilot\skills`; use forward slashes in shells that require them.
+Check before replacing an existing installation. The two workflow skills are
+self-contained; `gh-orchestrator` only adds the plugin's local report helpers
+when this package checkout is available.
+
+Custom agents are project-scoped in this package. Copy
+`.github/agents/pr-flow-reviewer.agent.md` into a target repository's
+`.github/agents` to expose that reviewer there. If a host does not support
+custom agents or child sessions, the skills fall back to a separate review
+pass or sequential work; they do not claim those capabilities exist.
+
+### Capability boundary
+
+The Copilot bindings intentionally cover workflows the active host can
+perform. They do not provide the Claude/T3 webhook broker, scheduled task
+installation, T3 thread configuration or messaging, automatic label wakeups,
+private Artifact publishing, or unattended operation after Copilot exits.
+`gh-orchestrator` can use host-native child sessions and session automation
+when they are actually available, but an active Copilot session is always
+required unless the user configures an independent supported automation.
 
 ## Claude Code plugins
 
@@ -27,10 +75,10 @@ The repository is also a Claude Code plugin marketplace with two plugins:
 /plugin install gh-orchestrator@andrej-agent-kit
 ```
 
-## Use with GitHub Copilot
+## Explainer-video with GitHub Copilot
 
 Open this repository in a Copilot-enabled editor, the Copilot app, or Copilot
-CLI. The project skill is discovered at
+CLI. The explainer project skill is discovered at
 `.github/skills/explainer-video/SKILL.md`.
 
 Try:
@@ -233,7 +281,7 @@ Output:
 `<external-workspace>\out\<topic-name>-1080p60.mp4` (or `480p15` for low quality).
 Silent previews include `-silent` in their filename.
 
-## Package contents
+## Explainer package contents
 
 | Path under `.github/skills/explainer-video` | Purpose |
 | --- | --- |
@@ -253,16 +301,20 @@ Python: review them before building untrusted projects.
 
 ```powershell
 python -m unittest discover -s tests -v
+node --test plugins\gh-orchestrator\bin\*.test.mjs
 ```
 
-Tests use the standard library and mocked Azure responses; they need neither
-Azure credentials nor Manim. Integration rendering requires the setup above.
-Keep generated media and secrets out of commits.
+Python tests use the standard library and mocked Azure responses; they need
+neither Azure credentials nor Manim. Node tests cover the retained GitHub
+orchestrator helpers. Integration rendering requires the setup above. Keep
+generated media and secrets out of commits.
 
-Adapted from the owner's personal `agent-kit` explainer-video skill. Only the
-video workflow was brought over; the original sports domain, plugin marketplace,
-and unrelated skills were not copied. No upstream license was present in the
-provided folder; no new license or ownership grant is inferred here.
+The explainer skill was adapted from the owner's personal `agent-kit`; no
+upstream license was present in the provided folder, and no new license or
+ownership grant is inferred. The `pr-flow` and `gh-orchestrator` Claude
+marketplace sources remain under `plugins`; the Copilot bindings are separate,
+portable workflow projections of those sources rather than duplicate plugin
+packages.
 
 References:
 [Copilot agent skills](https://docs.github.com/en/copilot/concepts/customizations/agent-skills),
