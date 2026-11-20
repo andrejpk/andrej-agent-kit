@@ -27,7 +27,33 @@ The repository is also a Claude Code plugin marketplace with two plugins:
 /plugin install gh-orchestrator@andrej-agent-kit
 ```
 
-## Use with GitHub Copilot
+### GitHub Copilot plugins
+
+`pr-flow` is also a GitHub Copilot CLI plugin. This repository carries a Copilot
+marketplace at `.github/plugin/marketplace.json`; the plugin's
+`.github/plugin/plugin.json` reuses the same `skills/` as the Claude plugin and
+adds a Copilot-format `reviewer` agent.
+
+```
+copilot plugin marketplace add andrejpk/andrej-agent-kit
+copilot plugin install pr-flow@andrej-agent-kit
+```
+
+(`/plugin ...` inside an interactive session works the same way.) The Claude
+agent in `plugins/pr-flow/agents/reviewer.md` is the source of truth;
+`python scripts/sync_copilot_agents.py` regenerates
+`plugins/pr-flow/copilot/agents/reviewer.agent.md` (tests fail if it is stale).
+
+**`gh-orchestrator` is not available in Copilot.** It is built on T3 Code: its
+broker, scheduled tasks and webhooks, `t3_thread_*` tools, and thread-per-issue
+model have no GitHub Copilot equivalent, so it is not listed in the Copilot
+marketplace. Only Claude Code (with T3 Code) can run it. Its `gh-work.mjs` and
+`climb-report.mjs` scripts are plain Node and can be used by hand, but nothing
+in Copilot invokes them. The T3-specific steps in `pr-flow` (`watch_pull_request`,
+thread renaming) are conditional and are skipped in Copilot, where `settle-pr`
+polls with `gh` instead.
+
+## Use the explainer skill with GitHub Copilot
 
 Open this repository in a Copilot-enabled editor, the Copilot app, or Copilot
 CLI. The project skill is discovered at
