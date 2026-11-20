@@ -15,6 +15,11 @@ Hand a task to the agent and get back a pull request that is ready to read.
 | `pr-screenshots` skill | Before/after screenshots or recordings of a UI change, attached to the PR with `gh --attach`. |
 
 Repo instructions (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING`) override the skills.
+
+In GitHub Copilot CLI, install with `copilot plugin marketplace add andrejpk/andrej-agent-kit`
+then `copilot plugin install pr-flow@andrej-agent-kit`. The skills are shared;
+the `reviewer` agent comes from `copilot/agents/reviewer.agent.md`, generated
+from `agents/reviewer.md` by `scripts/sync_copilot_agents.py`.
 In T3 Code, `settle-pr` uses `watch_pull_request` instead of polling. If a
 `self-review` plugin is installed, `land-the-plane` and `settle-pr` run it before
 the PR opens; otherwise they skip that step.
