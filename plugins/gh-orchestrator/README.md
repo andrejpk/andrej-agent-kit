@@ -280,6 +280,19 @@ A tracked issue wakes when any of these happens:
 
 Tests: `node --test plugins/gh-orchestrator/bin/*.test.mjs`.
 
+## GitHub Copilot
+
+Copilot discovers the supported, on-demand part of this plugin through
+`.github/skills/gh-orchestrator/SKILL.md`: issue intake, initiative planning and
+review, child-session delegation when the host provides it, and hill-climb
+measurement workflows. Copilot can call `gh-work.mjs` and `climb-report.mjs`
+from a checkout that contains this plugin.
+
+The Copilot binding does not claim the T3-only webhook broker, scheduled
+tasks, thread wakeup and messaging tools, model configuration, provenance
+footer, or private Artifact publishing. Those remain documented and packaged
+only through the Claude marketplace below.
+
 ## Dashboard
 
 The broker rewrites a pinned **🤖 Agent work** issue from GitHub, with no

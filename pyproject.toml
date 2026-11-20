@@ -1,7 +1,7 @@
 [project]
 name = "andrejky-agent-kit"
 version = "0.1.0"
-description = "GitHub Copilot skills for narrated banking explainers with Manim and Azure AI Speech"
+description = "Agent skills for GitHub workflows and narrated Manim explainers"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "manim>=0.19,<0.20",

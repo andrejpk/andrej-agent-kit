@@ -18,3 +18,16 @@ Repo instructions (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING`) override the skills
 In T3 Code, `settle-pr` uses `watch_pull_request` instead of polling. If a
 `self-review` plugin is installed, `land-the-plane` and `settle-pr` run it before
 the PR opens; otherwise they skip that step.
+
+## GitHub Copilot
+
+Copilot discovers the portable binding at
+`.github/skills/pr-flow/SKILL.md`. It carries the request-to-ready-PR workflow
+into Copilot without claiming T3 watchers, stamps, or thread tools. The
+repository-level `pr-flow-reviewer` custom agent is the Copilot surface for the
+plugin's read-only reviewer. Host capabilities determine which background
+monitoring steps are available; the binding uses supported `gh` checks when a
+watcher is not.
+
+The Claude plugin files above remain the Claude marketplace package. The
+Copilot skill is an intentionally thinner binding, not a second Claude package.
